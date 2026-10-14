@@ -1,0 +1,59 @@
+version: '3'
+
+# Local build and preview of the dashboard, same steps as the workflow.
+#   task serve                  # build into site/ and serve it
+#   task serve HOST=0.0.0.0     # reachable from outside a container
+#   task build PG=~/postgres    # use an existing clone instead of .cache/pg
+
+vars:
+  AFTER: '2025-12-31'
+  SINCE: '2025-06-01'
+  PG: '{{.ROOT_DIR}}/.cache/pg'
+  SITE: '{{.ROOT_DIR}}/site'
+  HOST: 127.0.0.1
+  PORT: 8000
+
+tasks:
+  clone:
+    desc: Shallow clone of PostgreSQL into .cache/pg, or update it
+    cmds:
+      - |
+        if [ -d "{{.PG}}" ]; then
+          git -C "{{.PG}}" fetch --quiet --shallow-since={{.SINCE}} origin
+        else
+          git clone --filter=blob:none --shallow-since={{.SINCE}} \
+            --no-single-branch --no-checkout https://github.com/postgres/postgres.git "{{.PG}}"
+        fi
+
+  data:
+    desc: Build data.json, ranking.json, chart.svg and stats.md
+    deps: [clone]
+    dir: '{{.PG}}'
+    cmds:
+      - mkdir -p "{{.SITE}}"
+      - python3 "{{.ROOT_DIR}}/build_dashboard_data.py" --after {{.AFTER}} --output "{{.SITE}}/data.json"
+      - python3 "{{.ROOT_DIR}}/build_ranking_data.py" --after {{.AFTER}} --output "{{.SITE}}/ranking.json"
+      - >-
+        python3 "{{.ROOT_DIR}}/percona_activity.py" --after {{.AFTER}}
+        --company-statistics --company-chart --company-chart-output "{{.SITE}}/chart.svg"
+        > "{{.SITE}}/stats.md"
+
+  community:
+    desc: Build community.json (fetches conference sites; cached in .cache/http)
+    cmds:
+      - mkdir -p "{{.SITE}}"
+      - python3 collect_community.py --output "{{.SITE}}/community.json"
+
+  build:
+    desc: Build everything into site/
+    deps: [data, community]
+    cmds:
+      - cp index.html "{{.SITE}}/"
+
+  serve:
+    desc: Build the code data and serve site/ (community.json only if built before)
+    deps: [data]
+    cmds:
+      - cp index.html "{{.SITE}}/"
+      - echo "http://{{.HOST}}:{{.PORT}}/"
+      - python3 -m http.server --directory "{{.SITE}}" --bind {{.HOST}} {{.PORT}}

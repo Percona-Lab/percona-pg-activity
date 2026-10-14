@@ -87,6 +87,11 @@ subject and changed paths: see `CATEGORY_RULES` and `AREA_RULES` in
 
 ## Running locally
 
+With [Task](https://taskfile.dev): `task serve` clones PostgreSQL into `.cache/pg`, builds
+`site/` and serves it on http://127.0.0.1:8000/ (`HOST=0.0.0.0` inside a container,
+`PG=/path/to/postgres` to use an existing clone). `task build` also collects
+`community.json`. By hand:
+
 ```
 cd /path/to/postgres            # needs refs/remotes/origin/{master,REL_*_STABLE}
 python3 /path/to/build_dashboard_data.py --after 2025-12-31 --output /tmp/site/data.json
