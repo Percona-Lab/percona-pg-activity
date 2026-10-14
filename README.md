@@ -4,11 +4,14 @@ A dashboard of Percona's contributions to PostgreSQL, rebuilt daily from public 
 
 **Live page:** https://percona-lab.github.io/percona-pg-activity/
 
-Three tabs:
+Four tabs:
 
 - **Code contributions** (2026, filterable by month range): changes authored and reviewed,
   company ranking, engineers, areas of PostgreSQL, and every change with Percona credit
   (summary, roles, PostgreSQL versions, links), exportable as Markdown or CSV.
+- **Code by people** (same range filter): everyone credited in PostgreSQL commits,
+  ranked by changes authored + reviewed, committers included by default, Percona
+  engineers highlighted; scatter, top 20 and a sortable, exportable table.
 - **Events & community** (since 2022, by year): talks, organiser / program / Code of
   Conduct committee roles and volunteering at PostgreSQL events, with slides and
   recordings; postgresql.org contributor and release-note recognition; Planet PostgreSQL;

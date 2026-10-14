@@ -68,7 +68,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
 .card .sub { color: var(--muted); font-size: 13px; margin: 2px 0 14px; }
 .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 
-.kpis { display: grid; gap: 16px; grid-template-columns: 2fr repeat(4, 1fr); margin-bottom: 16px; }
+.kpis { display: grid; gap: 16px; grid-template-columns: 2fr repeat(var(--n, 4), 1fr); margin-bottom: 16px; }
 @media (max-width: 960px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
 .kpi { padding: 16px 18px; }
 .kpi .label { color: var(--ink-2); font-size: 13px; }
@@ -169,6 +169,39 @@ details.table-view table { border-collapse: collapse; margin-top: 8px; font-vari
 details.table-view td, details.table-view th { padding: 3px 14px 3px 0; text-align: right; }
 details.table-view td:first-child, details.table-view th:first-child { text-align: left; }
 
+/* ranking */
+.scatter svg { display: block; width: 100%; height: auto; overflow: visible; }
+.scatter .dot { fill: var(--other); fill-opacity: .75; stroke: var(--surface); stroke-width: 1.5; }
+.scatter .dot.cm { fill: var(--surface); fill-opacity: 1; stroke: var(--muted); stroke-width: 1.5; }
+.scatter .dot.hl { fill: var(--accent); fill-opacity: 1; stroke: var(--surface); stroke-width: 1.5; }
+.scatter .dot.on { stroke: var(--ink); stroke-width: 2; }
+.scatter .parity { stroke: var(--axis); fill: none; stroke-dasharray: 3 3; }
+.scatter .lab { fill: var(--ink-2); font-size: 11.5px; }
+.scatter .lab.hl { fill: var(--ink); font-weight: 650; }
+.scatter .leader { stroke: var(--axis); }
+.legend .ring { background: transparent; border: 1.5px solid var(--muted); border-radius: 50%; }
+.legend .dotk { border-radius: 50%; }
+.fly { display: grid; grid-template-columns: 1fr minmax(110px, 150px) 1fr; gap: 3px 10px; align-items: center; font-size: 13px; }
+.fly .h { color: var(--muted); font-size: 12px; padding-bottom: 4px; border-bottom: 1px solid var(--grid); }
+.fly .h.l { text-align: right; }
+.fly .h.c { text-align: center; }
+.fly .nm { text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+.fly .nm.hl { color: var(--ink); font-weight: 650; }
+.fly .arm { display: flex; align-items: center; gap: 6px; min-width: 0; height: 20px; }
+.fly .arm.l { flex-direction: row-reverse; }
+.fly .arm i { display: block; height: 14px; min-width: 1px; }
+.fly .arm.l i { background: var(--accent); border-radius: 4px 0 0 4px; }
+.fly .arm.r i { background: var(--series-2); border-radius: 0 4px 4px 0; }
+.fly .arm span { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 12px; }
+.fly .gap { grid-column: 1 / -1; border-top: 1px solid var(--grid); height: 0; margin: 2px 0; }
+.cmk::after { content: ""; display: inline-block; width: 6px; height: 6px; border: 1.5px solid var(--muted); border-radius: 50%; margin-left: 6px; vertical-align: 1px; }
+.pill.co { background: var(--accent-soft); color: var(--ink); font-weight: 600; margin-left: 6px; }
+table.people th.sort { cursor: pointer; user-select: none; }
+table.people th.sort:hover, table.people th[aria-sort="ascending"], table.people th[aria-sort="descending"] { color: var(--ink); }
+table.people tr.hl td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+table.people td.rank { color: var(--muted); width: 1%; font-variant-numeric: tabular-nums; }
+table.people td.co { color: var(--ink-2); }
+
 footer { color: var(--muted); font-size: 13px; padding: 28px 0 40px; }
 footer p { margin: 4px 0; max-width: 860px; }
 .loading { color: var(--muted); padding: 60px 0; text-align: center; }
@@ -185,6 +218,7 @@ footer p { margin: 4px 0; max-width: 860px; }
 
   <nav class="tabs" aria-label="Sections">
     <a href="#code" data-tab="code">Code contributions</a>
+    <a href="#ranking" data-tab="ranking">Code by people</a>
     <a href="#community" data-tab="community">Events &amp; community</a>
     <a href="#blog" data-tab="blog">Blog posts</a>
   </nav>
@@ -212,10 +246,11 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const state = {
   tab: "code",
   code: { range: "all", q: "", person: "", role: "", category: "", area: "", companyMetric: "authored" },
+  ranking: { range: "all", committers: true, q: "", sort: "rank", dir: 1 },
   community: { year: "all", person: "", kind: "", q: "" },
   blog: { year: "all", source: "", author: "", q: "" },
 };
-let DATA = null, COMM = null;
+let DATA = null, COMM = null, RANK = null;
 let feedItems = [], eventRows = [], postRows = [];
 
 // ── DOM helpers (all data goes through textContent, never innerHTML) ─────────
@@ -577,6 +612,218 @@ function codeItem(c) {
         ...c.discussion.slice(0, 2).map((d, i) => ext(d, i ? "Related discussion" : "Mailing-list discussion")))));
 }
 
+// ═════ Code by people tab ═══════════════════════════════════════════════════
+function rankingPool(months) {
+  const S = state.ranking, set = new Set(months), idx = Object.fromEntries(RANK.slots.map((k, i) => [k, i]));
+  const pool = [];
+  for (const p of RANK.people) {
+    if (p.committer && !S.committers) continue;
+    const t = RANK.slots.map(() => 0);
+    for (const [m, v] of Object.entries(p.months)) if (set.has(m)) v.forEach((n, i) => { t[i] += n; });
+    const d = { name: p.name, company: p.company || "", committer: p.committer, hl: p.company === RANK.company };
+    for (const k of RANK.slots) d[k] = t[idx[k]];
+    d.t = d.a + d.r;
+    if (d.t || (p.committer && d.cm)) pool.push(d);
+  }
+  pool.sort((x, y) => y.t - x.t || y.r - x.r || x.name.localeCompare(y.name));
+  pool.forEach((d, i) => { d.rank = i + 1; });
+  return pool;
+}
+const rankNote = d => [["authored", d.a, "var(--accent)"], ["reviewed", d.r, "var(--series-2)"], ["reported", d.rep, "var(--axis)"]]
+  .concat(d.committer ? [["committed", d.cm, "var(--muted)"]] : []).map(([label, value, color]) => ({ label, value, color }));
+const tipTitle = d => `#${d.rank} ${d.name}${d.company ? ` · ${d.company}` : ""}${d.committer ? " · committer" : ""}`;
+
+function renderRanking(app, toolbar) {
+  const S = state.ranking;
+  toolbar.append(seg(RANGES.map(r => [r.id, r.label || yearLabel()]), S.range, id => { S.range = id; render(); }, "Time range"),
+    seg([["on", "Committers included"], ["off", "Committers excluded"]], S.committers ? "on" : "off",
+      id => { S.committers = id === "on"; render(); }, "Committers"));
+  const months = RANGES.find(r => r.id === S.range).months(allMonths());
+  const pool = rankingPool(months), mine = ours(pool);
+  const rangeName = RANGES.find(r => r.id === S.range).label || yearLabel();
+  const changes = months.reduce((a, m) => a + (RANK.changes_by_month[m] || 0), 0);
+  const best = mine[0];
+
+  app.append(el("section", { class: "kpis", style: "--n: 3", "aria-label": "Key numbers" },
+    kpi("People credited", fmt(pool.length), `${rangeName} · authored or reviewed at least one of ${fmt(changes)} PostgreSQL changes`, true),
+    kpi(`Highest ranked from ${RANK.company}`, best ? `#${best.rank}` : "–", best ? null : "No credits in this range"),
+    kpi(`${RANK.company} in the top 50`, fmt(mine.filter(d => d.rank <= 50).length), `${fmt(mine.length)} ${RANK.company} engineers credited in total`),
+    kpi(`${RANK.company} credits`, fmt(mine.reduce((a, d) => a + d.t, 0)), `${fmt(mine.reduce((a, d) => a + d.a, 0))} authored · ${fmt(mine.reduce((a, d) => a + d.r, 0))} reviewed`)));
+
+  const grid = el("div", { class: "grid" });
+  app.append(grid);
+  grid.append(el("section", { class: "card span-7" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h2", { text: "Authoring against reviewing" }),
+        el("p", { class: "sub", text: "One dot per person. Square-root scales keep the crowded low end readable; the dashed line marks equal counts." })),
+      el("div", { class: "legend" }, el("span", {}, el("i", { class: "dotk", style: "background:var(--accent)" }), RANK.company),
+        el("span", {}, el("i", { class: "dotk", style: "background:var(--other)" }), "Others"),
+        S.committers ? el("span", {}, el("i", { class: "ring" }), "Committers") : null)),
+    pool.length ? rankingScatter(pool) : el("div", { class: "empty", text: "No credits in this range." })));
+
+  grid.append(el("section", { class: "card span-5" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h2", { text: "Top 20" }), el("p", { class: "sub", text: "Ranked by changes authored + reviewed, on one shared scale" })),
+      legend([["Authored", "var(--accent)"], ["Reviewed", "var(--series-2)"]])),
+    pool.length ? rankingFly(pool) : el("div", { class: "empty", text: "No credits in this range." })));
+
+  grid.append(rankingTable(pool));
+}
+
+function rankingScatter(pool) {
+  const W = 640, H = 430, L = 46, R = 14, T = 10, B = 40, PW = W - L - R, PH = H - T - B;
+  const nice = v => [10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000].find(s => s >= v) || Math.ceil(v / 500) * 500;
+  const MA = nice(Math.max(1, ...pool.map(d => d.a))), MR = nice(Math.max(1, ...pool.map(d => d.r)));
+  const sx = v => L + Math.sqrt(v / MA) * PW, sy = v => T + PH - Math.sqrt(v / MR) * PH;
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Changes authored versus reviewed, one point per person. Values are in the table below." });
+  const text = (x, y, t, a) => { const n = sv("text", Object.assign({ x, y }, a)); n.textContent = t; svg.append(n); return n; };
+  const TICKS = [0, 1, 5, 10, 25, 50, 100, 200, 350, 500, 750, 1000];
+  TICKS.filter(v => v <= MA).forEach(v => {
+    svg.append(sv("line", { x1: sx(v), x2: sx(v), y1: T, y2: T + PH, class: v ? "grid-line" : "base-line" }));
+    text(sx(v), T + PH + 16, fmt(v), { "text-anchor": "middle" });
+  });
+  TICKS.filter(v => v <= MR).forEach(v => {
+    svg.append(sv("line", { x1: L, x2: L + PW, y1: sy(v), y2: sy(v), class: v ? "grid-line" : "base-line" }));
+    text(L - 8, sy(v) + 4, fmt(v), { "text-anchor": "end" });
+  });
+  const pm = Math.min(MA, MR), pts = [];
+  for (let i = 0; i <= 60; i++) pts.push(`${sx(pm * i / 60)},${sy(pm * i / 60)}`);
+  svg.append(sv("polyline", { points: pts.join(" "), class: "parity" }));
+  text(L + PW / 2, H - 4, "changes authored", { "text-anchor": "middle" });
+  text(0, 0, "changes reviewed", { "text-anchor": "middle", transform: `translate(12,${T + PH / 2}) rotate(-90)` });
+
+  const order = pool.slice().sort((x, y) => (x.hl - y.hl) || (x.committer - y.committer));
+  const dots = new Map();
+  for (const d of order) {
+    const c = sv("circle", { cx: sx(d.a), cy: sy(d.r), r: d.hl ? 5.5 : 4, class: "dot" + (d.hl ? " hl" : d.committer ? " cm" : "") });
+    dots.set(d, c);
+    svg.append(c);
+  }
+
+  // Label every Percona engineer, then the top of the ranking, without overlaps.
+  const placed = [], labelled = new Set();
+  for (const d of ours(pool).concat(pool.slice(0, 10))) {
+    if (labelled.has(d)) continue;
+    labelled.add(d);
+    const cx = sx(d.a), cy = sy(d.r), w = d.name.length * 6.4 + 4, h = 13;
+    for (const [dx, dy] of [[9, 4], [9, -9], [-w - 9, 4], [-w - 9, -9], [9, 17], [-w - 9, 17], [9, -22], [-w - 9, -22]]) {
+      const x = cx + dx, y = cy + dy;
+      if (x < L || x + w > W || y - h < 0 || y > T + PH) continue;
+      const box = { x, y: y - h, w, h: h + 2 };
+      if (placed.some(p => !(box.x + box.w < p.x || p.x + p.w < box.x || box.y + box.h < p.y || p.y + p.h < box.y))) continue;
+      placed.push(box);
+      if (Math.abs(dy) > 10) svg.append(sv("line", { x1: cx, y1: cy, x2: dx > 0 ? x - 2 : x + w + 2, y2: y - 4, class: "leader" }));
+      text(x, y, d.name, { class: "lab" + (d.hl ? " hl" : "") });
+      break;
+    }
+  }
+
+  let cur = null;
+  const clear = () => { if (cur) cur.classList.remove("on"); cur = null; hideTip(); };
+  svg.addEventListener("mousemove", e => {
+    const r = svg.getBoundingClientRect(), mx = (e.clientX - r.left) / r.width * W, my = (e.clientY - r.top) / r.height * H;
+    let best = null, bd = 400;
+    for (const d of pool) {
+      const dd = (sx(d.a) - mx) ** 2 + (sy(d.r) - my) ** 2;
+      if (dd < bd) { bd = dd; best = d; }
+    }
+    if (!best) return clear();
+    if (cur !== dots.get(best)) { if (cur) cur.classList.remove("on"); cur = dots.get(best); cur.classList.add("on"); }
+    showTip(e, tipTitle(best), rankNote(best));
+  });
+  svg.addEventListener("mouseleave", clear);
+
+  const ao = pool.filter(d => !d.r).length, ro = pool.filter(d => !d.a).length;
+  return el("div", { class: "scatter" }, svg,
+    el("p", { class: "sub", text: `${fmt(ao)} only authored, ${fmt(ro)} only reviewed, ${fmt(pool.length - ao - ro)} did both.` }));
+}
+const ours = pool => pool.filter(d => d.hl);
+
+function rankingFly(pool) {
+  const top = pool.slice(0, 20), extra = ours(pool).filter(d => d.rank > 20);
+  const max = Math.max(1, ...top.concat(extra).flatMap(d => [d.a, d.r]));
+  const box = el("div", { class: "fly" },
+    el("div", { class: "h l", text: "authored" }), el("div", { class: "h c", text: "person" }), el("div", { class: "h", text: "reviewed" }));
+  const row = d => {
+    const arm = (side, v) => el("div", { class: `arm ${side}` }, el("i", { style: `width:${v / max * 100}%` }), el("span", { text: v ? fmt(v) : "" }));
+    const nm = el("div", { class: "nm" + (d.hl ? " hl" : "") + (d.committer ? " cmk" : ""), title: tipTitle(d), text: `${d.rank}. ${d.name}` });
+    const cells = [arm("l", d.a), nm, arm("r", d.r)];
+    for (const c of cells) {
+      c.addEventListener("mousemove", e => showTip(e, tipTitle(d), rankNote(d)));
+      c.addEventListener("mouseleave", hideTip);
+    }
+    return cells;
+  };
+  top.forEach(d => box.append(...row(d)));
+  if (extra.length) {
+    box.append(el("div", { class: "gap", "aria-hidden": "true" }));
+    extra.forEach(d => box.append(...row(d)));
+  }
+  return box;
+}
+
+function rankingTable(pool) {
+  const S = state.ranking;
+  const cols = [
+    ["rank", "#"], ["name", "Person"], ["company", "Company", "opt"], ["a", "Authored", "num"], ["r", "Reviewed", "num"],
+    ["rep", "Reported", "num opt"], ["touched", "Changes", "num opt"],
+  ].concat(S.committers ? [["cm", "Committed", "num opt"], ["self", "Own, discussed", "num opt"], ["skip", "Own, not counted", "num opt"]] : []);
+  const titles = {
+    touched: "Distinct changes the person is credited on in any role",
+    self: "Committer's own changes with no Author: trailer but a Discussion: link, counted as authored",
+    skip: "Committer's own changes with neither an Author: trailer nor a discussion link, not counted",
+  };
+  const list = el("tbody"), countEl = el("span");
+  let rows = [];
+  const draw = () => {
+    const q = S.q.trim().toLowerCase();
+    rows = pool.filter(d => !q || `${d.name} ${d.company}`.toLowerCase().includes(q))
+      .sort((x, y) => {
+        const a = x[S.sort], b = y[S.sort];
+        return S.dir * (typeof a === "string" ? a.localeCompare(b) : a - b) || x.rank - y.rank;
+      });
+    countEl.textContent = `${fmt(rows.length)} of ${fmt(pool.length)} people`;
+    let shown = 50;
+    const fill = () => {
+      list.replaceChildren(...rows.slice(0, shown).map(d => el("tr", { class: d.hl ? "hl" : null },
+        cols.map(([k, , cls]) => {
+          if (k === "rank") return el("td", { class: "rank", text: fmt(d.rank) });
+          if (k === "name") return el("td", {}, el("b", { class: d.committer ? "cmk" : null, text: d.name }),
+            d.hl ? el("span", { class: "pill co", text: RANK.company }) : null);
+          if (k === "company") return el("td", { class: "co opt", text: d.company || "–" });
+          return el("td", { class: cls, text: fmt(d[k]) });
+        }))));
+      if (rows.length > shown) list.append(el("tr", {}, el("td", { colspan: cols.length, class: "empty" },
+        el("button", { class: "btn", onclick: () => { shown += 100; fill(); }, text: `Show more (${fmt(rows.length - shown)} left)` }))));
+    };
+    fill();
+  };
+  const head = el("tr", {}, cols.map(([k, label, cls]) => el("th", {
+    class: `sort ${cls || ""}`, title: titles[k] || null, tabindex: 0,
+    "aria-sort": S.sort === k ? (S.dir === 1 ? "ascending" : "descending") : "none",
+    onclick: () => {
+      if (S.sort === k) S.dir = -S.dir;
+      else { S.sort = k; S.dir = k === "rank" || k === "name" || k === "company" ? 1 : -1; }
+      render();
+    },
+    onkeydown: e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } },
+    text: label,
+  })));
+  draw();
+  return el("section", { class: "card span-12" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h2", { text: "Everyone credited" }),
+        el("p", { class: "sub", text: `Select a column to sort. ${RANK.company} engineers are highlighted${S.committers ? "; a ring marks committers" : ""}.` })),
+      exportButtons(() => rows,
+        d => `${d.rank}. **${d.name}**${d.company ? ` (${d.company})` : ""}: ${d.a} authored, ${d.r} reviewed`,
+        ["rank", "name", "company", "committer", "authored", "reviewed", "reported", "changes"],
+        d => [d.rank, d.name, d.company, d.committer ? "yes" : "", d.a, d.r, d.rep, d.touched],
+        "postgresql-contributor-ranking")),
+    el("div", { class: "filters" }, searchBox(S.q, "Search people or companies…", v => { S.q = v; draw(); })),
+    el("div", { class: "feed-meta" }, countEl),
+    el("div", { class: "table-scroll" }, el("table", { class: "people" }, el("thead", {}, head), list)));
+}
+
 // ═════ Events & community tab ════════════════════════════════════════════════
 const actDate = a => a.date || (COMM.events[a.event] || {}).start || "";
 const evName = id => (COMM.events[id] || {}).name || id;
@@ -810,6 +1057,7 @@ function renderBlog(app, toolbar) {
 // ═════ page shell ════════════════════════════════════════════════════════════
 const FOOTERS = {
   code: [el("p", {}, el("b", { text: "How this is counted. " }), "A change counts as authored when a Percona engineer is in its Author: or Co-authored-by: trailer, and reviewed for Reviewed-by:. A fix backpatched to several release branches is counted once. Company attribution uses email domains plus a curated name list; changes with no known employer appear as Unattributed.")],
+  ranking: [el("p", {}, el("b", { text: "How this is counted. " }), "One credit per person per change, a fix backpatched to several branches counted once. Author: and Co-authored-by: count as authored, Reviewed-by: as reviewed, Reported-by: and Diagnosed-by: as reported. Committers are credited as authors when a trailer names them, or for a change of their own with no Author: trailer but a Discussion: link; their own changes with neither, such as typo fixes and version stamps, are not counted. Many commits carry no Reviewed-by: at all, so review numbers are a floor.")],
   community: [el("p", {}, el("b", { text: "Where this comes from. " }), "Schedules and organisation pages of PostgreSQL Europe, PgUS, PGDay UK, PGConf.dev and Swiss PGDay events, postgresql.org contributor and release-note lists, Planet PostgreSQL and Hackorum. A role counts when the event lists the person with Percona as company, or they are on our people list and the source names no other employer. Meetups, community days and on-site volunteering that no website lists come from a hand-curated file.")],
   blog: [el("p", {}, el("b", { text: "Where this comes from. " }), "The PostgreSQL category feed of percona.com/blog and the PostgreSQL-tagged posts of percona.community.")],
 };
@@ -819,17 +1067,22 @@ function render() {
   app.replaceChildren(); toolbar.replaceChildren();
   document.querySelectorAll("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === state.tab ? "page" : "false"));
   if (state.tab === "code") renderCode(app, toolbar);
+  else if (state.tab === "ranking") {
+    if (RANK) renderRanking(app, toolbar);
+    else app.append(el("div", { class: "loading", text: "Ranking data is not available yet." }));
+  }
   else if (!COMM) app.append(el("div", { class: "loading", text: "Community data is not available yet." }));
   else if (state.tab === "community") renderCommunity(app, toolbar);
   else renderBlog(app, toolbar);
   document.getElementById("footer").replaceChildren(...FOOTERS[state.tab], el("p", {},
     "Sources and rules: ", ext("https://github.com/Percona-Lab/percona-pg-activity", "Percona-Lab/percona-pg-activity"), " · ",
-    el("a", { href: "data.json", text: "data.json" }), " · ", el("a", { href: "community.json", text: "community.json" }), " · ",
+    el("a", { href: "data.json", text: "data.json" }), " · ", el("a", { href: "ranking.json", text: "ranking.json" }), " · ",
+    el("a", { href: "community.json", text: "community.json" }), " · ",
     el("a", { href: "stats.md", text: "company tables (Markdown)" })));
 }
 function route() {
   const t = location.hash.slice(1);
-  state.tab = ["code", "community", "blog"].includes(t) ? t : "code";
+  state.tab = ["code", "ranking", "community", "blog"].includes(t) ? t : "code";
   if (DATA) render();
 }
 addEventListener("hashchange", route);
@@ -837,8 +1090,9 @@ addEventListener("hashchange", route);
 Promise.all([
   fetch("data.json", { cache: "no-cache" }).then(r => { if (!r.ok) throw new Error(`data.json: HTTP ${r.status}`); return r.json(); }),
   fetch("community.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null),
-]).then(([d, c]) => {
-  DATA = d; COMM = c;
+  fetch("ranking.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null),
+]).then(([d, c, k]) => {
+  DATA = d; COMM = c; RANK = k;
   const h = d.postgres_head;
   document.getElementById("meta").replaceChildren(
     `Updated ${d.generated_at.replace("T", " ").replace("Z", " UTC")} · PostgreSQL source as of `,
