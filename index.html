@@ -1,35 +1,613 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PostgreSQL Contributions 2026</title>
-  <style>
-    :root { --bg: #f6f8fa; --fg: #24292f; --muted: #6e7781; --card: #ffffff; --link: #0969da; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --card: #ffffff; --link: #4493f8; }
-    }
-    body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif;
-           max-width: 820px; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
-    h1 { font-size: 1.5rem; margin-bottom: .25rem; }
-    p { color: var(--muted); margin-top: 0; }
-    a { color: var(--link); }
-    .chart { background: var(--card); border-radius: 8px; padding: 8px; }
-    .chart img { display: block; width: 100%; height: auto; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Percona PostgreSQL Contributions</title>
+<meta name="description" content="What Percona contributes to PostgreSQL: commits, reviews, people and the changes behind them, updated daily from the PostgreSQL git history.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #6f6e69;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --accent: #2a78d6;          /* Percona / authored */
+  --accent-soft: #cde2fb;
+  --series-2: #eb6834;        /* reviewed */
+  --other: #b9b8b0;           /* other companies */
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7;
+    --muted: #9a9890; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --accent: #3987e5; --accent-soft: #184f95; --series-2: #d95926; --other: #5c5b56; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7;
+  --muted: #9a9890; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --accent: #3987e5; --accent-soft: #184f95; --series-2: #d95926; --other: #5c5b56; --shadow: none;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 32px 0 8px; }
+.eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 6px 0 8px; letter-spacing: -0.01em; }
+.lede { color: var(--ink-2); max-width: 760px; margin: 0; }
+.meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 20px 0 16px; }
+.seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button {
+  border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 14px;
+  padding: 6px 12px; border-radius: 8px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px; box-shadow: var(--shadow); min-width: 0;
+}
+.span-12 { grid-column: span 12; } .span-7 { grid-column: span 7; } .span-6 { grid-column: span 6; } .span-5 { grid-column: span 5; }
+@media (max-width: 960px) { .span-7, .span-6, .span-5 { grid-column: span 12; } }
+.card h2 { font-size: 16px; margin: 0; }
+.card .sub { color: var(--muted); font-size: 13px; margin: 2px 0 14px; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+
+.kpis { display: grid; gap: 16px; grid-template-columns: 2fr repeat(4, 1fr); margin-bottom: 16px; }
+@media (max-width: 960px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+.kpi { padding: 16px 18px; }
+.kpi .label { color: var(--ink-2); font-size: 13px; }
+.kpi .value { font-size: 32px; font-weight: 650; line-height: 1.15; margin-top: 4px; }
+.kpi.hero { display: flex; flex-direction: column; justify-content: center; }
+@media (max-width: 960px) { .kpi.hero { grid-column: span 2; } }
+.kpi.hero .value { font-size: 52px; }
+.kpi .note { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+@media (max-width: 520px) { .kpis { gap: 10px; } .kpi .value { font-size: 26px; } .kpi.hero .value { font-size: 44px; } }
+
+.legend { display: flex; gap: 14px; font-size: 13px; color: var(--ink-2); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+svg text { fill: var(--muted); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+svg .grid-line { stroke: var(--grid); stroke-width: 1; }
+svg .base-line { stroke: var(--axis); stroke-width: 1; }
+svg .hit { fill: transparent; }
+svg .hit:hover { fill: var(--ink); fill-opacity: .04; }
+
+.bars { display: grid; grid-template-columns: minmax(110px, max-content) 1fr auto; gap: 6px 10px; align-items: center; font-size: 13.5px; }
+.bars .name { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.bars .name.hl { color: var(--ink); font-weight: 650; }
+.bars .track { height: 22px; display: flex; align-items: center; }
+.bars .bar { height: 18px; border-radius: 0 4px 4px 0; background: var(--other); min-width: 2px; }
+.bars .bar.hl { background: var(--accent); }
+.bars .val { font-variant-numeric: tabular-nums; color: var(--ink-2); text-align: right; min-width: 2.5em; }
+.bars .val.hl { color: var(--ink); font-weight: 650; }
+.bars .gap { grid-column: 1 / -1; border-top: 1px solid var(--grid); height: 0; margin: 2px 0; }
+
+table.people { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.people th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12.5px; padding: 0 8px 8px 0; border-bottom: 1px solid var(--grid); }
+table.people td { padding: 10px 8px 10px 0; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+table.people tr:last-child td { border-bottom: 0; }
+table.people .num { text-align: right; font-variant-numeric: tabular-nums; }
+table.people .barcell { width: 32%; }
+table.people td:first-child { white-space: nowrap; }
+@media (max-width: 560px) { table.people .barcell, table.people .other, .avatar { display: none; } }
+.table-scroll { overflow-x: auto; }
+button.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); font-weight: 600; cursor: pointer; text-align: left; }
+button.linkish:hover { color: var(--accent); }
+.minibar { display: flex; gap: 2px; height: 10px; }
+.minibar i { display: block; height: 10px; border-radius: 0 3px 3px 0; }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--ink); display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; margin-right: 10px; vertical-align: middle; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+.filters input, .filters select {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--surface-2);
+  border: 1px solid transparent; border-radius: 9px; padding: 7px 10px; min-width: 0;
+}
+.filters input { flex: 1 1 240px; }
+.filters select { flex: 0 1 auto; max-width: 100%; }
+.btn {
+  font: inherit; font-size: 13.5px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+.feed-meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
+.feed { list-style: none; margin: 0; padding: 0; }
+.item { padding: 16px 0; border-top: 1px solid var(--grid); display: grid; grid-template-columns: 96px 1fr; gap: 4px 16px; }
+@media (max-width: 640px) { .item { grid-template-columns: 1fr; } }
+.item .date { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.item h3 { font-size: 15.5px; margin: 0 0 4px; line-height: 1.35; overflow-wrap: anywhere; }
+.item h3 a { color: var(--ink); }
+.item h3 a:hover { color: var(--accent); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.pill.cat { color: var(--ink); font-weight: 600; }
+.pill.ver { border: 1px solid var(--border); background: transparent; }
+.summary { color: var(--ink-2); font-size: 14px; margin: 4px 0; overflow-wrap: anywhere; }
+.summary p { margin: 0 0 8px; }
+details.more summary { cursor: pointer; color: var(--accent); font-size: 13px; margin-bottom: 6px; }
+.credits { font-size: 13.5px; color: var(--ink-2); margin-top: 6px; }
+.credits b { color: var(--ink); }
+.role { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 0 6px; border-radius: 5px; margin-left: 4px; background: var(--accent-soft); color: var(--ink); }
+.links { font-size: 13px; margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; }
+.empty { color: var(--muted); padding: 24px 0; text-align: center; }
+
+.tooltip {
+  position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font-size: 13px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.14); opacity: 0; transition: opacity .08s; max-width: 260px;
+}
+.tooltip .t { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.tooltip .r { display: flex; align-items: center; gap: 8px; }
+.tooltip .r i { width: 12px; height: 2px; border-radius: 1px; }
+.tooltip .r strong { font-variant-numeric: tabular-nums; min-width: 2ch; }
+
+details.table-view { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+details.table-view summary { cursor: pointer; color: var(--muted); }
+details.table-view table { border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+details.table-view td, details.table-view th { padding: 3px 14px 3px 0; text-align: right; }
+details.table-view td:first-child, details.table-view th:first-child { text-align: left; }
+
+footer { color: var(--muted); font-size: 13px; padding: 28px 0 40px; }
+footer p { margin: 4px 0; max-width: 820px; }
+.loading { color: var(--muted); padding: 60px 0; text-align: center; }
+</style>
 </head>
 <body>
-  <h1>PostgreSQL commits &amp; reviews by company, 2026</h1>
-  <p>
-    Last updated: <span id="updated">…</span> · PostgreSQL HEAD: <code id="head">…</code><br>
-    Source: <code>git log</code> of postgres/postgres (author and <code>Reviewed-by:</code> trailers, backports deduplicated).
-    <a href="stats.md">Raw tables (Markdown)</a> ·
-    <a href="https://github.com/Percona-Lab/percona-pg-activity">Script &amp; company mapping</a>
-  </p>
-  <div class="chart"><img src="chart.svg" alt="Bar charts of commits and reviews per company in 2026"></div>
-  <script>
-    for (const [id, file] of [["updated", "updated.txt"], ["head", "head.txt"]])
-      fetch(file).then(r => r.ok ? r.text() : "").then(t => { if (t) document.getElementById(id).textContent = t.trim(); });
-  </script>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Percona · PostgreSQL community</div>
+    <h1>What Percona contributes to PostgreSQL</h1>
+    <p class="lede">Every change to PostgreSQL that a Percona engineer wrote, reviewed, reported or tested. The page is rebuilt daily from the official PostgreSQL source history.</p>
+    <div class="meta" id="meta">Loading…</div>
+  </header>
+
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="Time range" id="range"></div>
+  </div>
+
+  <main id="app"><div class="loading">Loading contribution data…</div></main>
+
+  <footer>
+    <p><b>How this is counted.</b> A change counts as <i>authored</i> when a Percona engineer is in its <code>Author:</code> or <code>Co-authored-by:</code> trailer, and <i>reviewed</i> for <code>Reviewed-by:</code>. A fix backpatched to several release branches is counted once. Company attribution uses email domains plus a curated name list. Changes with no known employer appear as "Unattributed".</p>
+    <p>Data: <a href="https://github.com/postgres/postgres">postgres/postgres</a> · Generator and attribution rules: <a href="https://github.com/Percona-Lab/percona-pg-activity">Percona-Lab/percona-pg-activity</a> · <a href="data.json">data.json</a> · <a href="stats.md">company tables (Markdown)</a></p>
+  </footer>
+</div>
+<div class="tooltip" id="tip" aria-hidden="true"></div>
+
+<script>
+"use strict";
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const ROLE_LABEL = { authored: "Author", reviewed: "Reviewer", reported: "Reporter", tested: "Tester", suggested: "Suggested", diagnosed: "Diagnosed" };
+const SVGNS = "http://www.w3.org/2000/svg";
+const state = { range: "all", q: "", person: "", role: "", category: "", area: "", companyMetric: "authored" };
+let DATA = null;
+let feedItems = [];
+
+// ── DOM helpers (all data goes through textContent, never innerHTML) ─────────
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null) n.append(k.nodeType ? k : document.createTextNode(k));
+  return n;
+}
+function sv(tag, attrs) {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+  return n;
+}
+const fmt = n => n.toLocaleString("en-US");
+const monthLabel = m => `${MONTHS[+m.slice(5) - 1]} ${m.slice(0, 4)}`;
+const shortDate = d => `${MONTHS[+d.slice(5, 7) - 1]} ${+d.slice(8)}, ${d.slice(0, 4)}`;
+
+// ── tooltip ──────────────────────────────────────────────────────────────────
+const tip = document.getElementById("tip");
+function showTip(evt, title, rows) {
+  tip.replaceChildren(el("div", { class: "t", text: title }),
+    ...rows.map(r => el("div", { class: "r" }, el("i", { style: `background:${r.color}` }), el("strong", { text: fmt(r.value) }), el("span", { text: r.label }))));
+  tip.style.opacity = 1;
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = evt.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+const hideTip = () => { tip.style.opacity = 0; };
+
+// ── time range ───────────────────────────────────────────────────────────────
+function allMonths() {
+  // git's --after=2025-12-31 effectively starts the next day, so skip a
+  // starting month when the cut-off is its last days.
+  const after = DATA.range.after;
+  let [y, m] = after.slice(0, 7).split("-").map(Number);
+  if (+after.slice(8) >= 28) { m++; if (m > 12) { m = 1; y++; } }
+  const end = DATA.generated_at.slice(0, 7), out = [];
+  for (let key; (key = `${y}-${String(m).padStart(2, "0")}`) <= end;) {
+    out.push(key);
+    m++; if (m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+const RANGES = [
+  { id: "all", label: null, months: ms => ms },
+  { id: "6m", label: "Last 6 months", months: ms => ms.slice(-6) },
+  { id: "3m", label: "Last 3 months", months: ms => ms.slice(-3) },
+  { id: "1m", label: "This month", months: ms => ms.slice(-1) },
+];
+const rangeMonths = () => RANGES.find(r => r.id === state.range).months(allMonths());
+function yearLabel() {
+  const ms = allMonths(), y0 = ms[0].slice(0, 4), y1 = ms[ms.length - 1].slice(0, 4);
+  return y0 === y1 ? `${y0} so far` : `${y0}–${y1}`;
+}
+
+// ── derived numbers ──────────────────────────────────────────────────────────
+const perconaCredit = c => c.credits.filter(cr => cr.company === DATA.company);
+const hasRole = (c, role) => perconaCredit(c).some(cr => cr.roles.includes(role));
+function companyTotals(metric, months) {
+  const set = new Set(months), rows = [];
+  for (const [company, byMonth] of Object.entries(DATA.companies[metric])) {
+    if (company === "Unattributed") continue;
+    let v = 0;
+    for (const [m, n] of Object.entries(byMonth)) if (set.has(m)) v += n;
+    if (v > 0) rows.push({ company, value: v });
+  }
+  return rows.sort((a, b) => b.value - a.value || a.company.localeCompare(b.company));
+}
+
+// ── components ───────────────────────────────────────────────────────────────
+function kpi(label, value, note, hero) {
+  return el("div", { class: "card kpi" + (hero ? " hero" : "") },
+    el("div", { class: "label", text: label }),
+    el("div", { class: "value", text: value }),
+    note ? el("div", { class: "note", text: note }) : null);
+}
+
+function niceStep(max) {
+  const raw = max / 4, mag = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 5, 10].map(f => f * mag).find(s => s >= raw);
+}
+
+function columnChart(months, series) {
+  // Grouped columns, one y-axis; the whole month band is the hover target.
+  // Size the viewBox to the real width so text stays 12px on phones.
+  const W = Math.max(300, Math.min(720, document.querySelector(".wrap").clientWidth - 72)), H = 260, L = 34, R = 8, T = 12, B = 28;
+  const max = Math.max(1, ...series.flatMap(s => months.map(m => s.values[m] || 0)));
+  const step = Math.max(1, niceStep(max)), yMax = Math.ceil(max / step) * step;
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "Monthly authored and reviewed changes" });
+  const y = v => T + (H - T - B) * (1 - v / yMax);
+  for (let v = 0; v <= yMax; v += step) {
+    svg.append(sv("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v === 0 ? "base-line" : "grid-line" }));
+    const t = sv("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end" }); t.textContent = fmt(v); svg.append(t);
+  }
+  const band = (W - L - R) / months.length;
+  const barW = Math.min(24, (band * 0.7 - 2 * (series.length - 1)) / series.length);
+  const groupW = barW * series.length + 2 * (series.length - 1);
+  months.forEach((m, i) => {
+    const x0 = L + band * i + (band - groupW) / 2;
+    series.forEach((s, j) => {
+      const v = s.values[m] || 0;
+      if (!v) return;
+      const x = x0 + j * (barW + 2), top = y(v), r = Math.min(4, y(0) - top, barW / 2);
+      svg.append(sv("path", {
+        d: `M${x},${y(0)} V${top + r} Q${x},${top} ${x + r},${top} H${x + barW - r} Q${x + barW},${top} ${x + barW},${top + r} V${y(0)} Z`,
+        fill: s.color,
+      }));
+    });
+    const t = sv("text", { x: L + band * i + band / 2, y: H - 8, "text-anchor": "middle" });
+    t.textContent = months.length > 8 || band < 70 ? MONTHS[+m.slice(5) - 1] : monthLabel(m);
+    svg.append(t);
+    const hit = sv("rect", { x: L + band * i, y: T, width: band, height: H - T - B, class: "hit" });
+    hit.addEventListener("mousemove", e => showTip(e, monthLabel(m), series.map(s => ({ label: s.label, value: s.values[m] || 0, color: s.color }))));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.append(hit);
+  });
+  return svg;
+}
+
+function barList(rows, { highlight, accentAll, unit }) {
+  // Horizontal bars, one series; the highlighted row (Percona) gets the accent.
+  const max = Math.max(1, ...rows.map(r => r.value));
+  const box = el("div", { class: "bars" });
+  for (const r of rows) {
+    if (r.gapBefore) box.append(el("div", { class: "gap", "aria-hidden": "true" }));
+    const hl = accentAll || r.label === highlight, strong = r.label === highlight;
+    const track = el("div", { class: "track" }, el("div", { class: "bar" + (hl ? " hl" : ""), style: `width:${(r.value / max) * 100}%` }));
+    track.addEventListener("mousemove", e => showTip(e, r.label, [{ label: unit, value: r.value, color: hl ? "var(--accent)" : "var(--other)" }]));
+    track.addEventListener("mouseleave", hideTip);
+    box.append(el("div", { class: "name" + (strong ? " hl" : ""), title: r.label, text: (r.rank ? `${r.rank}. ` : "") + r.label }),
+      track, el("div", { class: "val" + (strong ? " hl" : ""), text: fmt(r.value) }));
+  }
+  return box;
+}
+
+function tableView(headers, rows) {
+  return el("details", { class: "table-view" }, el("summary", { text: "View as table" }),
+    el("table", {}, el("thead", {}, el("tr", {}, headers.map(h => el("th", { text: h })))),
+      el("tbody", {}, rows.map(r => el("tr", {}, r.map(c => el("td", { text: typeof c === "number" ? fmt(c) : c })))))));
+}
+
+function versionPills(c) {
+  const st = DATA.release_status || {}, vers = c.versions.map(Number);
+  if (!vers.length) return [];
+  const label = v => {
+    const s = st[v];
+    if (s === "in development") return `PostgreSQL ${v} (in development)`;
+    return s && s !== "released" ? `PostgreSQL ${v} (${s})` : `PostgreSQL ${v}`;
+  };
+  const released = vers.filter(v => st[v] === "released");
+  const firstNew = vers.find(v => st[v] !== "released");
+  const pills = [];
+  if (released.length) {
+    pills.push(el("span", { class: "pill ver", text: released.length > 1
+      ? `Fix for PostgreSQL ${released[0]}–${released[released.length - 1]}` : `Fix for PostgreSQL ${released[0]}` }));
+  }
+  if (firstNew) pills.push(el("span", { class: "pill ver", text: label(firstNew) }));
+  return pills;
+}
+
+const initials = name => name.split(/\s+/).map(p => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+const listNames = ns => ns.length > 3 ? `${ns.slice(0, 3).join(", ")} and ${ns.length - 3} more` : ns.join(", ");
+
+// ── page ─────────────────────────────────────────────────────────────────────
+function render() {
+  hideTip();
+  const months = rangeMonths(), monthSet = new Set(months);
+  const commits = DATA.commits.filter(c => monthSet.has(c.date.slice(0, 7)));
+  const authored = commits.filter(c => hasRole(c, "authored"));
+  const reviewed = commits.filter(c => hasRole(c, "reviewed"));
+  const totalChanges = months.reduce((a, m) => a + (DATA.total_changes_by_month[m] || 0), 0);
+  const ranking = companyTotals("authored", months);
+  const rank = ranking.findIndex(r => r.company === DATA.company) + 1;
+  const st = DATA.release_status || {};
+  const contributed = c => hasRole(c, "authored") || hasRole(c, "reviewed");
+  const fixes = commits.filter(c => contributed(c) && c.versions.some(v => st[v] === "released"));
+  const upcoming = Object.keys(st).map(Number).filter(v => st[v] !== "released" && st[v] !== "in development").sort((a, b) => a - b)[0];
+  const inUpcoming = upcoming ? commits.filter(c => contributed(c) && Math.min(...c.versions.map(Number)) === upcoming) : [];
+  const rangeName = RANGES.find(r => r.id === state.range).label || yearLabel();
+
+  const app = document.getElementById("app");
+  app.replaceChildren();
+
+  app.append(el("section", { class: "kpis", "aria-label": "Key numbers" },
+    kpi("Changes authored by Percona", fmt(authored.length),
+      `${rangeName} · ${totalChanges ? (authored.length / totalChanges * 100).toFixed(1) : 0}% of all ${fmt(totalChanges)} PostgreSQL changes`, true),
+    kpi("Changes reviewed", fmt(reviewed.length), "Patches Percona engineers reviewed before commit"),
+    kpi("Company rank", rank ? `#${rank}` : "–", state.range === "all" ? `By changes authored, of ${DATA.company_count} companies` : "By changes authored in this range"),
+    upcoming ? kpi(`New in PostgreSQL ${upcoming}`, fmt(inUpcoming.length), `Authored or reviewed, shipping in the next major release (${st[upcoming]} now)`) : null,
+    kpi("Fixes for released versions", fmt(fixes.length), "Authored or reviewed, backpatched to supported releases"),
+  ));
+
+  const grid = el("div", { class: "grid" });
+  app.append(grid);
+
+  // Activity per month
+  const mAuth = {}, mRev = {};
+  for (const c of authored) mAuth[c.date.slice(0, 7)] = (mAuth[c.date.slice(0, 7)] || 0) + 1;
+  for (const c of reviewed) mRev[c.date.slice(0, 7)] = (mRev[c.date.slice(0, 7)] || 0) + 1;
+  grid.append(el("section", { class: "card span-7" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h2", { text: "Activity per month" }), el("p", { class: "sub", text: "Distinct changes Percona engineers authored or reviewed" })),
+      el("div", { class: "legend" },
+        el("span", {}, el("i", { style: "background:var(--accent)" }), "Authored"),
+        el("span", {}, el("i", { style: "background:var(--series-2)" }), "Reviewed"))),
+    columnChart(months, [
+      { label: "Authored", color: "var(--accent)", values: mAuth },
+      { label: "Reviewed", color: "var(--series-2)", values: mRev },
+    ]),
+    tableView(["Month", "Authored", "Reviewed"], months.map(m => [monthLabel(m), mAuth[m] || 0, mRev[m] || 0]))));
+
+  // Companies
+  const metric = state.companyMetric, rows = companyTotals(metric, months);
+  const top = rows.slice(0, 12).map((r, i) => ({ label: r.company, value: r.value, rank: i + 1 }));
+  const pIdx = rows.findIndex(r => r.company === DATA.company);
+  if (pIdx >= 12) top.push({ label: DATA.company, value: rows[pIdx].value, rank: pIdx + 1, gapBefore: true });
+  grid.append(el("section", { class: "card span-5" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h2", { text: "Companies behind PostgreSQL" }), el("p", { class: "sub", text: `Top companies by distinct changes ${metric}` })),
+      el("div", { class: "seg", role: "group", "aria-label": "Company metric" },
+        ...[["authored", "Authored"], ["reviewed", "Reviewed"]].map(([id, lbl]) =>
+          el("button", { "aria-pressed": String(metric === id), onclick: () => { state.companyMetric = id; render(); }, text: lbl })))),
+    top.length ? barList(top, { highlight: DATA.company, unit: `changes ${metric}` }) : el("div", { class: "empty", text: "No data in this range." })));
+
+  // People
+  const pc = {};
+  for (const c of commits) for (const cr of perconaCredit(c)) {
+    const p = pc[cr.name] ||= { authored: 0, reviewed: 0, other: 0 };
+    if (cr.roles.includes("authored")) p.authored++;
+    if (cr.roles.includes("reviewed")) p.reviewed++;
+    if (!cr.roles.includes("authored") && !cr.roles.includes("reviewed")) p.other++;
+  }
+  const peopleRows = Object.entries(pc).sort((a, b) => (b[1].authored + b[1].reviewed) - (a[1].authored + a[1].reviewed) || a[0].localeCompare(b[0]));
+  const pMax = Math.max(1, ...peopleRows.map(([, p]) => p.authored + p.reviewed));
+  grid.append(el("section", { class: "card span-6" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h2", { text: "Percona engineers" }), el("p", { class: "sub", text: "Select a name to list that person's changes" })),
+      el("div", { class: "legend" },
+        el("span", {}, el("i", { style: "background:var(--accent)" }), "Authored"),
+        el("span", {}, el("i", { style: "background:var(--series-2)" }), "Reviewed"))),
+    peopleRows.length ? el("div", { class: "table-scroll" }, el("table", { class: "people" },
+      el("thead", {}, el("tr", {}, el("th", { text: "Engineer" }), el("th", { class: "num", text: "Authored" }), el("th", { class: "num", text: "Reviewed" }),
+        el("th", { class: "num other", text: "Other credits", title: "Reported, tested, suggested or diagnosed" }), el("th", { class: "barcell", text: "" }))),
+      el("tbody", {}, peopleRows.map(([name, p]) => el("tr", {},
+        el("td", {}, el("span", { class: "avatar", "aria-hidden": "true", text: initials(name) }),
+          el("button", { class: "linkish", text: name, onclick: () => { state.person = name; render(); document.getElementById("feed-card").scrollIntoView({ behavior: "smooth" }); } })),
+        el("td", { class: "num", text: fmt(p.authored) }),
+        el("td", { class: "num", text: fmt(p.reviewed) }),
+        el("td", { class: "num other", text: fmt(p.other) }),
+        el("td", { class: "barcell" }, el("div", { class: "minibar", "aria-hidden": "true" },
+          p.authored ? el("i", { style: `width:${p.authored / pMax * 100}%;background:var(--accent)` }) : null,
+          p.reviewed ? el("i", { style: `width:${p.reviewed / pMax * 100}%;background:var(--series-2)` }) : null))))))) :
+      el("div", { class: "empty", text: "No credited work in this range." })));
+
+  // Areas
+  const areas = {};
+  for (const c of commits) if (contributed(c)) for (const a of c.areas) areas[a] = (areas[a] || 0) + 1;
+  const areaRows = Object.entries(areas).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12).map(([label, value]) => ({ label, value }));
+  grid.append(el("section", { class: "card span-6" },
+    el("h2", { text: "Where we work in PostgreSQL" }),
+    el("p", { class: "sub", text: "Parts of PostgreSQL touched by changes Percona authored or reviewed" }),
+    areaRows.length ? barList(areaRows, { accentAll: true, unit: "changes" }) : el("div", { class: "empty", text: "No changes in this range." })));
+
+  grid.append(renderFeed(commits));
+}
+
+function matches(c) {
+  const mine = perconaCredit(c);
+  const pool = state.person ? mine.filter(cr => cr.name === state.person) : mine;
+  if (state.person && !pool.length) return false;
+  if (state.role && !pool.some(cr => cr.roles.includes(state.role))) return false;
+  if (state.category && c.category !== state.category) return false;
+  if (state.area && !c.areas.includes(state.area)) return false;
+  if (state.q) {
+    const hay = `${c.subject} ${c.summary} ${c.credits.map(cr => cr.name).join(" ")} ${c.areas.join(" ")}`.toLowerCase();
+    if (!state.q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))) return false;
+  }
+  return true;
+}
+
+function renderFeed(commits) {
+  const select = (key, values, all, label, names = {}) => {
+    const s = el("select", { "aria-label": label, onchange: e => { state[key] = e.target.value; render(); } },
+      el("option", { value: "", text: all }),
+      ...[...new Set(values.concat(state[key] ? [state[key]] : []))].sort().map(v => el("option", { value: v, text: names[v] || v })));
+    s.value = state[key];
+    return s;
+  };
+  const search = el("input", { type: "search", placeholder: "Search changes, e.g. pg_dump, SSL, OAuth…", value: state.q, "aria-label": "Search changes" });
+  let timer;
+  search.addEventListener("input", e => { clearTimeout(timer); timer = setTimeout(() => { state.q = e.target.value; shown = 30; renderList(); }, 150); });
+
+  const list = el("ul", { class: "feed" }), count = el("span");
+  const filtered = state.person || state.role || state.category || state.area || state.q;
+  const card = el("section", { class: "card span-12", id: "feed-card" },
+    el("div", { class: "card-head" },
+      el("div", {}, el("h2", { text: "The changes" }),
+        el("p", { class: "sub", text: "Every PostgreSQL change with Percona credit, newest first. Copy the list for Slack or a newsletter, or download it as CSV." })),
+      el("div", { style: "display:flex;gap:8px;flex-wrap:wrap" },
+        el("button", { class: "btn", onclick: e => copyMarkdown(e.currentTarget), text: "Copy as Markdown" }),
+        el("button", { class: "btn", onclick: downloadCsv, text: "Download CSV" }))),
+    el("div", { class: "filters" },
+      search,
+      select("person", commits.flatMap(c => perconaCredit(c).map(cr => cr.name)), "All engineers", "Engineer"),
+      select("role", Object.keys(ROLE_LABEL), "Any role", "Role", ROLE_LABEL),
+      select("category", commits.map(c => c.category), "All types", "Type of change"),
+      select("area", commits.flatMap(c => c.areas), "All areas", "Area")),
+    el("div", { class: "feed-meta" }, count,
+      filtered ? el("button", { class: "btn", onclick: () => { Object.assign(state, { q: "", person: "", role: "", category: "", area: "" }); render(); }, text: "Clear filters" }) : null),
+    list);
+
+  let shown = 30;
+  function renderList() {
+    feedItems = commits.filter(matches);
+    count.textContent = `${fmt(feedItems.length)} change${feedItems.length === 1 ? "" : "s"}`;
+    list.replaceChildren(...(feedItems.length ? feedItems.slice(0, shown).map(feedItem) : [el("li", { class: "empty", text: "No changes match these filters." })]));
+    if (feedItems.length > shown) list.append(el("li", { class: "empty" },
+      el("button", { class: "btn", onclick: () => { shown += 50; renderList(); }, text: `Show more (${fmt(feedItems.length - shown)} left)` })));
+  }
+  renderList();
+  return card;
+}
+
+function feedItem(c) {
+  const paras = c.summary ? c.summary.split("\n\n") : [];
+  const summary = el("div", { class: "summary" });
+  if (paras.length) {
+    summary.append(el("p", { text: paras[0] }));
+    if (paras.length > 1) summary.append(el("details", { class: "more" }, el("summary", { text: "Full commit message" }), ...paras.slice(1).map(p => el("p", { text: p }))));
+  }
+  const mine = perconaCredit(c), others = c.credits.filter(cr => cr.company !== DATA.company);
+  const credits = el("div", { class: "credits" });
+  mine.forEach((cr, i) => {
+    if (i) credits.append(" · ");
+    credits.append(el("b", { text: cr.name }), ...cr.roles.map(r => el("span", { class: "role", text: ROLE_LABEL[r] || r })));
+  });
+  const ctx = [];
+  const oa = others.filter(cr => cr.roles.includes("authored")).map(cr => cr.name);
+  const or = others.filter(cr => cr.roles.includes("reviewed")).map(cr => cr.name);
+  if (oa.length) ctx.push(`written with ${listNames(oa)}`);
+  if (or.length) ctx.push(`reviewed by ${listNames(or)}`);
+  if (ctx.length) credits.append(el("span", { text: " — " + ctx.join("; ") }));
+
+  return el("li", { class: "item" },
+    el("div", { class: "date", text: shortDate(c.date) }),
+    el("div", {},
+      el("h3", {}, el("a", { href: `https://github.com/postgres/postgres/commit/${c.hash}`, target: "_blank", rel: "noopener", text: c.subject })),
+      el("div", { class: "pills" }, el("span", { class: "pill cat", text: c.category }), ...c.areas.map(a => el("span", { class: "pill", text: a })), ...versionPills(c)),
+      summary, credits,
+      el("div", { class: "links" },
+        el("a", { href: `https://git.postgresql.org/gitweb/?p=postgresql.git;a=commitdiff;h=${c.hash}`, target: "_blank", rel: "noopener", text: "Commit on git.postgresql.org" }),
+        ...c.discussion.filter(d => /^https:\/\//.test(d)).slice(0, 2).map((d, i) =>
+          el("a", { href: d, target: "_blank", rel: "noopener", text: i ? "Related discussion" : "Mailing-list discussion" })))));
+}
+
+// ── export ───────────────────────────────────────────────────────────────────
+const perconaLine = c => perconaCredit(c).map(cr => `${cr.name} (${cr.roles.map(r => ROLE_LABEL[r] || r).join(", ")})`).join("; ");
+function copyMarkdown(btn) {
+  const md = feedItems.map(c => `- **${c.subject}** — ${perconaLine(c)}. ${c.category}${c.versions.length ? `, PostgreSQL ${c.versions.join("/")}` : ""}. https://github.com/postgres/postgres/commit/${c.hash.slice(0, 12)}`).join("\n");
+  navigator.clipboard.writeText(md).then(
+    () => { btn.textContent = `Copied ${fmt(feedItems.length)}`; setTimeout(() => { btn.textContent = "Copy as Markdown"; }, 1600); },
+    () => { btn.textContent = "Copy failed"; });
+}
+function downloadCsv() {
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = [["date", "subject", "type", "areas", "postgres_versions", "percona_credits", "other_authors", "commit_url", "discussion", "summary"]]
+    .concat(feedItems.map(c => [c.date, c.subject, c.category, c.areas.join("; "), c.versions.join("; "), perconaLine(c),
+      c.credits.filter(cr => cr.company !== DATA.company && cr.roles.includes("authored")).map(cr => cr.name).join("; "),
+      `https://github.com/postgres/postgres/commit/${c.hash}`, c.discussion.join(" "), (c.summary || "").split("\n\n")[0]]));
+  const url = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(",")).join("\n")], { type: "text/csv" }));
+  const a = el("a", { href: url, download: `percona-postgresql-changes-${DATA.generated_at.slice(0, 10)}.csv` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ── boot ─────────────────────────────────────────────────────────────────────
+function renderRange() {
+  document.getElementById("range").replaceChildren(...RANGES.map(r => el("button", {
+    "aria-pressed": String(state.range === r.id), text: r.label || yearLabel(),
+    onclick: () => { state.range = r.id; renderRange(); render(); },
+  })));
+}
+
+fetch("data.json", { cache: "no-cache" }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then(d => {
+  DATA = d;
+  const h = d.postgres_head;
+  document.getElementById("meta").replaceChildren(
+    `Updated ${d.generated_at.replace("T", " ").replace("Z", " UTC")} · PostgreSQL source as of `,
+    el("a", { href: `https://github.com/postgres/postgres/commit/${h.hash}`, text: h.hash }), ` (${h.date})`);
+  renderRange();
+  render();
+  let lastW = innerWidth, rt;
+  addEventListener("resize", () => {
+    if (Math.abs(innerWidth - lastW) < 40) return;
+    clearTimeout(rt); rt = setTimeout(() => { lastW = innerWidth; render(); }, 200);
+  });
+}).catch(err => {
+  document.getElementById("app").replaceChildren(el("div", { class: "loading", text: `Could not load data.json (${err.message}).` }));
+});
+</script>
 </body>
 </html>

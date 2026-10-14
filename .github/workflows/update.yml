@@ -1,11 +1,11 @@
-name: Update PG activity chart
+name: Update PG activity dashboard
 
 on:
   schedule:
     - cron: "17 5 * * *"     # daily, 05:17 UTC
   workflow_dispatch:          # manual "Run workflow" button
   push:
-    branches: [main]          # rebuild when the script or page changes
+    branches: [main]          # rebuild when the scripts or page change
 
 permissions:
   contents: read
@@ -23,24 +23,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      # Commits only (no trees/blobs): fast, and all that `git log` needs.
+      # Commit history + trees (for "which area of PostgreSQL"), no file
+      # contents, only since shortly before $AFTER: ~140 MB, ~20 s.
       - name: Clone PostgreSQL history
-        run: git clone --filter=tree:0 --no-checkout https://github.com/postgres/postgres.git pg
+        run: |
+          git clone --filter=blob:none --shallow-since=2025-11-01 \
+            --no-single-branch --no-checkout https://github.com/postgres/postgres.git pg
 
-      - name: Generate chart
+      - name: Build dashboard data
         working-directory: pg
         run: |
           mkdir -p ../site
+          python3 ../build_dashboard_data.py --after "$AFTER" --output ../site/data.json
           python3 ../percona_activity.py --after "$AFTER" \
             --company-statistics --company-chart \
             --company-chart-output ../site/chart.svg > ../site/stats.md
           cp ../index.html ../site/
-          date -u +"%Y-%m-%d %H:%M UTC" > ../site/updated.txt
-          git log -1 --format='%h %s' origin/master > ../site/head.txt
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
@@ -52,4 +54,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
