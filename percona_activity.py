@@ -174,7 +174,6 @@ COMPANY_NAME_OVERRIDES: dict[str, str] = {
     "nitin jadhav": "Microsoft",
     "imran zaheer": "Cybertec",
     "nikolay samokhvalov": "Postgres.ai",
-    "vlad lesin": "Percona",
     "mario gonzalez": "EDB",
     "fabrizio de royes mello": "Tiger Data (Timescale)",
     "karina litskevich": "Postgres Professional",
