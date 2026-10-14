@@ -1,0 +1,54 @@
+{
+  "_comment": "Percona people to look for in community sources. 'aliases' are other spellings used on conference sites. Optional 'since'/'until' (YYYY-MM-DD) limit which events count as Percona work; leave them out when unknown. Anyone listed with company 'Percona' on a source page is picked up even if missing here.",
+  "people": [
+    {
+      "name": "Alastair Turner",
+      "since": "2024-06-01"
+    },
+    {
+      "name": "Andreas Karlsson"
+    },
+    {
+      "name": "Dimitri Vanoverbeke"
+    },
+    {
+      "name": "Jan Wieremjewicz"
+    },
+    {
+      "name": "Jobin Augustine"
+    },
+    {
+      "name": "Kai Wagner"
+    },
+    {
+      "name": "Pep Pla"
+    },
+    {
+      "name": "Peter Farkas"
+    },
+    {
+      "name": "Peter Zaitsev"
+    },
+    {
+      "name": "Robert Bernier"
+    },
+    {
+      "name": "Stefan Fercot"
+    },
+    {
+      "name": "Takis Stathopoulos",
+      "aliases": [
+        "Panagiotis Stathopoulos"
+      ]
+    },
+    {
+      "name": "Vlad Lesin"
+    },
+    {
+      "name": "Yoann La Cancellera"
+    },
+    {
+      "name": "Zsolt Parragi"
+    }
+  ]
+}

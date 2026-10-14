@@ -32,6 +32,19 @@ jobs:
           git clone --filter=blob:none --shallow-since=2025-11-01 \
             --no-single-branch --no-checkout https://github.com/postgres/postgres.git pg
 
+      # Conference pages, feeds etc. Past events rarely change, so keep the
+      # HTTP cache between runs: a warm run makes a few dozen requests.
+      - uses: actions/cache@v6
+        with:
+          path: .cache/http
+          key: http-cache-${{ github.run_id }}
+          restore-keys: http-cache-
+
+      - name: Collect community activity
+        run: |
+          mkdir -p site
+          python3 collect_community.py --output site/community.json
+
       - name: Build dashboard data
         working-directory: pg
         run: |
