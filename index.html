@@ -736,7 +736,8 @@ function eventItem([id, rows]) {
           ? [" ", safeUrl(a.url) ? ext(a.url, a.title) : (a.title || ""),
              a.co_speakers && a.co_speakers.length ? el("span", { text: ` (with ${listNames(a.co_speakers)})` }) : null,
              el("span", { class: "mini-links" }, ext(a.slides, "Slides"), ext(a.video, "Video"))]
-          : [a.title ? ` · ${a.title}` : (a.section && !/^(organisers?|organising committee)$/i.test(a.section) ? ` · ${a.section}` : ""), a.note ? ` (${a.note})` : ""];
+          : [a.title ? ` · ${a.title}` : (a.section && !/^(organisers?|organising committee)$/i.test(a.section) ? ` · ${a.section}` : ""), a.note ? ` (${a.note})` : "",
+             a.slots ? ` · ${a.slots} shift${a.slots === 1 ? "" : "s"}` : ""];
         return el("li", {}, el("span", { class: "kind", style: `--k:${k.color}`, text: k.label }), el("b", { text: a.person }), ...detail);
       }))));
 }

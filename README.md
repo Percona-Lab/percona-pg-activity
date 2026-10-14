@@ -53,6 +53,22 @@ event does not list another employer. Speaker profiles show a person's *current*
 so they are only used as evidence for events in the last ~18 months. Entries dropped
 because a source names another employer are listed under `review` in `community.json`.
 
+### Volunteering
+
+Volunteer schedules on the conference system (`/events/<event>/volunteer/`) need a login,
+so the daily build can't read them. Import them locally with your own session instead:
+
+```
+python3 import_volunteering.py --session www.postgresql.eu=<sessionid> --session postgresql.us=<sessionid>
+python3 import_volunteering.py --session www.postgresql.eu=<sessionid> --write   # merge into community/volunteering.csv
+```
+
+`<sessionid>` is the `sessionid` cookie of that site while you're logged in (browser developer
+tools → Cookies); each site (postgresql.eu, postgresql.us, pgday.uk, pgevents.ca) has its own.
+The script only sees events where you were a volunteer or admin, and lists the Percona
+people on those events' volunteer lists. Review the CSV diff, then commit. Volunteering at
+events outside this system (FOSDEM, meetups) goes in `community/manual.json`.
+
 New conference series on these systems are picked up automatically. To add a different
 kind of site, add a collector function in `collect_community.py`.
 

@@ -14,6 +14,7 @@ everything else for about a day, so daily runs only fetch what may change.
 """
 
 import argparse
+import csv
 import hashlib
 import html
 import json
@@ -298,13 +299,12 @@ def add_event(out: dict, ev: dict) -> None:
     out["events"].setdefault(ev["id"], ev)
 
 
-def collect_pgeu(http: Http, roster: Roster, inst: dict, out: dict) -> None:
-    base = inst["base"]
-    host = urlparse(base).netloc
+def pgeu_events(http: Http, inst: dict):
+    """Yield (slug, site, year, home page) for each conference on an instance."""
+    host = urlparse(inst["base"]).netloc
     slug_re = re.compile(re.escape(host) + r"/events/(?:(?:register|schedule|sponsor/signup)/)?([a-z]+\d{4})/")
     for site, year in conference_sites(http, inst):
-        old = year < date.today().year
-        home = http.get(site, max_age_days=365 if old else 0.9)
+        home = http.get(site, max_age_days=365 if year < date.today().year else 0.9)
         if home is None:
             continue
         slugs = slug_re.findall(home)
@@ -313,8 +313,15 @@ def collect_pgeu(http: Http, roster: Roster, inst: dict, out: dict) -> None:
             domain = urlparse(site).netloc.split(".", 1)[1]
             prefix = inst["guess"].get(domain)
             slug = f"{prefix}{year}" if prefix else None
-        if not slug:
-            continue
+        if slug:
+            yield slug, site, year, home
+
+
+def collect_pgeu(http: Http, roster: Roster, inst: dict, out: dict) -> None:
+    base = inst["base"]
+    host = urlparse(base).netloc
+    for slug, site, year, home in pgeu_events(http, inst):
+        old = year < date.today().year
         xml_text = http.get(f"{base}/events/{slug}/schedule.xml", max_age_days=365 if old else 0.9)
         conf = {"id": slug, "url": site, "source": host}
         sessions = parse_frab(xml_text, conf)
@@ -645,6 +652,17 @@ def build(http: Http) -> dict:
         except Exception as e:      # one broken site must not sink the whole page
             errors.append(f"{label}: {e!r}")
             print(f"  ! {label} failed: {e!r}", file=sys.stderr)
+
+    # Volunteering from pgeu-system volunteer schedules (login only), imported
+    # locally with import_volunteering.py and reviewed before committing.
+    vol_path = ROOT / "community" / "volunteering.csv"
+    if vol_path.exists():
+        with vol_path.open(newline="") as f:
+            for row in csv.DictReader(f):
+                if row.get("person") and row.get("event"):
+                    out["activities"].append({"kind": "volunteer", "person": row["person"], "event": row["event"],
+                                              "date": row.get("date") or None, "evidence": "volunteer schedule",
+                                              "slots": int(row["slots"]) if (row.get("slots") or "").isdigit() else None})
 
     manual_path = ROOT / "community" / "manual.json"
     if manual_path.exists():
