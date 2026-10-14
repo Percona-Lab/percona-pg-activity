@@ -115,8 +115,12 @@ class Http:
 
 # ── People ──────────────────────────────────────────────────────────────────
 
+TRANSLIT = str.maketrans({"ł": "l", "Ł": "L", "ø": "o", "Ø": "O", "æ": "ae", "ß": "ss", "đ": "d"})
+
+
 def norm(name: str) -> str:
-    name = "".join(c for c in unicodedata.normalize("NFKD", html.unescape(name)) if not unicodedata.combining(c))
+    name = html.unescape(name).translate(TRANSLIT)
+    name = "".join(c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c))
     name = re.sub(r"\(.*?\)|<[^>]*>", " ", name)
     return re.sub(r"[^a-z ]+", "", re.sub(r"\s+", " ", name.lower())).strip()
 
@@ -130,7 +134,9 @@ NO_COMPANY = {"", "none", "n/a", "-", "self", "self-employed"}
 
 class Roster:
     def __init__(self, path: Path):
-        self.people = json.loads(path.read_text())["people"]
+        data = json.loads(path.read_text())
+        self.people = data["people"]
+        self.excluded = {norm(p["name"]) for p in data.get("exclude", [])}
         self.by_key = {}
         for p in self.people:
             for n in [p["name"], *p.get("aliases", [])]:
@@ -153,16 +159,18 @@ class Roster:
         company = (company or "").strip()
         listed = COMPANY.lower() in company.lower()
         other = not listed and company.lower() not in NO_COMPANY
+        if norm(name) in self.excluded:
+            return None
         p = self.by_key.get(norm(name))
+        if p and when and (p.get("since", "0000") > when or p.get("until", "9999") < when):
+            self.review.append({"person": p["name"], "where": where, "date": when, "reason": "outside since/until"})
+            return None
         if listed:
             return (p["name"] if p else clean_display(name)), "company listed"
         if not p:
             return None
         if other:
             self.review.append({"person": p["name"], "where": where, "date": when, "reason": f"listed as {company}"})
-            return None
-        if when and (p.get("since", "0000") > when or p.get("until", "9999") < when):
-            self.review.append({"person": p["name"], "where": where, "date": when, "reason": "outside since/until"})
             return None
         return p["name"], "people.json"
 

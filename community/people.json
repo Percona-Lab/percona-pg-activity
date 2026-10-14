@@ -1,30 +1,43 @@
 {
-  "_comment": "Percona people to look for in community sources. 'aliases' are other spellings used on conference sites. Optional 'since'/'until' (YYYY-MM-DD) limit which events count as Percona work; leave them out when unknown. Anyone listed with company 'Percona' on a source page is picked up even if missing here.",
+  "_comment": "Percona people to look for in community sources. 'aliases' are other spellings used on conference sites. 'since'/'until' (YYYY-MM-DD) limit which events count as Percona work and override whatever company a speaker profile shows (profiles show the current employer); leave them out when the person joined before 2022. Anyone a source lists with company 'Percona' is also picked up, unless they are in 'exclude' (former employees whose profiles still say Percona).",
   "people": [
     {
       "name": "Alastair Turner",
       "since": "2024-06-01"
     },
     {
-      "name": "Andreas Karlsson"
+      "name": "Andreas Karlsson",
+      "since": "2024-11-01"
     },
     {
       "name": "Dimitri Vanoverbeke"
     },
     {
-      "name": "Jan Wieremjewicz"
+      "name": "Jan Wieremjewicz",
+      "since": "2022-04-01"
     },
     {
       "name": "Jobin Augustine"
     },
     {
-      "name": "Kai Wagner"
+      "name": "Kai Wagner",
+      "since": "2022-04-01"
+    },
+    {
+      "name": "Michal Nosek",
+      "aliases": [
+        "Michał Nosek"
+      ]
+    },
+    {
+      "name": "Natalia Marukovich"
     },
     {
       "name": "Pep Pla"
     },
     {
-      "name": "Peter Farkas"
+      "name": "Peter Farkas",
+      "since": "2025-10-01"
     },
     {
       "name": "Peter Zaitsev"
@@ -33,7 +46,8 @@
       "name": "Robert Bernier"
     },
     {
-      "name": "Stefan Fercot"
+      "name": "Stefan Fercot",
+      "since": "2026-08-01"
     },
     {
       "name": "Takis Stathopoulos",
@@ -49,6 +63,17 @@
     },
     {
       "name": "Zsolt Parragi"
+    }
+  ],
+  "exclude": [
+    {
+      "name": "Avi Vallarapu"
+    },
+    {
+      "name": "Muhammad Usama"
+    },
+    {
+      "name": "Naeem Akhter"
     }
   ]
 }
