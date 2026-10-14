@@ -26,20 +26,6 @@ import percona_activity as pa  # noqa: E402
 COMPANY = pa.HIGHLIGHT_COMPANY
 TOP_COMPANIES = 25
 
-# Trailer roles we credit. Only "authored" and "reviewed" feed the headline
-# counts (same rule as percona_activity.py); the rest show up per commit.
-ROLE_MAP = {
-    "author": "authored",
-    "co-authored-by": "authored",
-    "reviewed-by": "reviewed",
-    "reported-by": "reported",
-    "tested-by": "tested",
-    "suggested-by": "suggested",
-    "diagnosed-by": "diagnosed",
-    "analyzed-by": "diagnosed",
-}
-ROLE_RE = re.compile(r"^(" + "|".join(re.escape(r) for r in ROLE_MAP) + r"):\s*(.*)$", re.IGNORECASE)
-EMAIL_RE = re.compile(r"<([^<>]+)>?")
 HEADER_RE = re.compile(r"^COMMIT ([0-9a-f]{40}) (\d{4}-\d{2}-\d{2}) (.+)$")
 DISCUSSION_RE = re.compile(r"^Discussion:\s*(https?://\S+)", re.IGNORECASE)
 TRAILER_LINE_RE = re.compile(r"^[A-Z][A-Za-z-]+(-by|-through|-version)?:\s")
@@ -294,18 +280,11 @@ def build(after: str, before: str | None) -> dict:
             dm = DISCUSSION_RE.match(line.strip())
             if dm and dm.group(1) not in g["discussion"]:
                 g["discussion"].append(dm.group(1))
-            rm = ROLE_RE.match(line.strip())
-            if not rm:
+            t = pa.parse_trailer(line)
+            if not t:
                 continue
-            role = ROLE_MAP[rm.group(1).lower()]
-            for part in pa._split_trailer_names(rm.group(2)):
-                em = EMAIL_RE.search(part)
-                email = em.group(1).strip().lower() if em else None
-                name = pa._clean_name(part[: em.start()] if em else part)
-                if not name and not email:
-                    continue
-                if pa._norm_name(name) in pa._NOISE_NAMES and not email:
-                    continue
+            role, people = t
+            for name, email in people:
                 display, company = attr.resolve(name, email)
                 g["credits"][display].add(role)
                 g["people"][display] = company

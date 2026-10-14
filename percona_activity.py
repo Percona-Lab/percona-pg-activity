@@ -154,12 +154,12 @@ COMPANY_NAME_OVERRIDES: dict[str, str] = {
     "mahendra singh thalor": "EDB",
     "bryan green": "EDB",
     "greg sabino mullane": "Crunchy Data",
-    "jonathan gonzalez v.": "EDB",
+    "jonathan gonzalez v": "EDB",
     "thom brown": "Data Egret",
     "tatsuo ishii": "SRA OSS",
     "xiaopeng wang": "Microsoft",
     "joel jacobson": "Glue Finance AB",
-    "ian barwick": "EDB",
+    "ian lawrence barwick": "EDB",
     "christoph berg": "Cybertec",
     "jeff davis": "Databricks",
     "michael banck": "NetApp",
@@ -170,7 +170,7 @@ COMPANY_NAME_OVERRIDES: dict[str, str] = {
     "mark atwood": "Review Commit LLC",
     "rafia sabih": "Cybertec",
     "maciek sakrejda": "pganalyze",
-    "david e. wheeler": "ClickHouse",
+    "david e wheeler": "ClickHouse",
     "nitin jadhav": "Microsoft",
     "imran zaheer": "Cybertec",
     "nikolay samokhvalov": "Postgres.ai",
@@ -189,6 +189,48 @@ COMPANY_NAME_OVERRIDES: dict[str, str] = {
     "rahila syed": "Microsoft",
 }
 
+
+# Spellings of one person that share no email address, so the identity merge
+# cannot join them. Keys and values are _norm_name() forms; the value is the
+# canonical key, which COMPANY_NAME_OVERRIDES must use. Same-surname people
+# (Chao Li / Japin Li / Haiyang Li) are different people.
+NAME_ALIASES: dict[str, str] = {
+    "masao fujii": "fujii masao",
+    "sawada masahiko": "masahiko sawada",
+    "wang yuelin": "yuelin wang",
+    "hou zhijie": "zhijie hou",
+    "paul jungwirth": "paul a jungwirth",
+    "srinath reddy": "srinath reddy sadipiralla",
+    "mikhail nikalayeu": "mihail nikalayeu",
+    "satya narlapuram": "satyanarayana narlapuram",
+    "kenny": "kenny chen",
+    "bilal yavuz": "nazir bilal yavuz",
+    "andrey m borodin": "andrey borodin",
+    "burd greg": "greg burd",
+    "alvaro": "alvaro herrera",
+    "kohei kaigai": "kaigai kohei",
+    "albe laurenz": "laurenz albe",
+    "tsunakawa takayuki": "takayuki tsunakawa",
+    "matsumura ryo": "ryo matsumura",
+    "kartyshov ivan": "ivan kartyshov",
+    "katsuragi yuta": "yuta katsuragi",
+    "li japin": "japin li",
+    "tang haiying": "haiying tang",
+    "seino yuki": "yuki seino",
+    "osumi takamichi": "takamichi osumi",
+    "kuroda hayato": "hayato kuroda",
+    "zhao junwang": "junwang zhao",
+    "zhang mingli": "mingli zhang",
+    "zhong shihao": "shihao zhong",
+    "ilyasov ian": "ian ilyasov",
+    "melnikov maksim": "maksim melnikov",
+    "chauhan dhruv": "dhruv chauhan",
+    "joao detomini": "joao marcelo detomini",
+    "team xint code": "xint code",
+    "ian barwick": "ian lawrence barwick",
+    "x-man": "zizhuanliu x-man",
+    "gregburd": "greg burd",
+}
 
 def fetch_log(after: str, before: str | None) -> str:
     cmd = ["git", "log", "--all",
@@ -297,7 +339,9 @@ def _strip_accents(s: str) -> str:
 
 def _norm_name(name: str) -> str:
     name = re.sub(r"\(.*?\)", "", name)
-    return re.sub(r"\s+", " ", _strip_accents(name).lower().strip())
+    name = _strip_accents(name).lower().replace(".", " ").replace("'", "")
+    name = re.sub(r"\s+", " ", name).strip()
+    return NAME_ALIASES.get(name, name)
 
 
 def _split_trailer_names(rest: str) -> list[str]:
@@ -321,24 +365,93 @@ def _split_trailer_names(rest: str) -> list[str]:
 def _clean_name(name: str) -> str:
     name = re.sub(r"\(.*?\)", "", name)   # balanced parenthetical: "(Fujitsu)"
     name = re.sub(r"\(.*$", "", name)     # unbalanced trailing: "(offlist"
-    return name.strip().strip(",").strip()
+    name = re.sub(r"^[:\s]+", "", name)
+    name = re.sub(r"^.*\breported by\s+", "", name, flags=re.I)
+    name = re.sub(r"\s+as part of .*$", "", name, flags=re.I)
+    name = re.sub(r"^(?:co-)?(?:author|reviewed-by|reported-by)\s*:\s*", "", name, flags=re.I)
+    name = re.sub(r"^(?:idea|patch|report|suggestion|based on .*?)\s+(?:from|by)\s+", "", name, flags=re.I)
+    name = re.sub(r"\s+", " ", name)
+    return name.strip().strip(",;").strip()
 
 
 _NOISE_NAMES = {"todo", "offlist", "off-list", "off list", ""}
 
+# Trailer key -> role. Keys match case-insensitively; the odd spellings all
+# occur in upstream history.
+TRAILER_ROLES = {
+    "author": "authored",
+    "co-authored-by": "authored",
+    "co-authored-bu": "authored",
+    "co-author": "authored",
+    "reviewed-by": "reviewed",
+    "reviewed by": "reviewed",
+    "reviewer": "reviewed",
+    "reported-by": "reported",
+    "reported by": "reported",
+    "tested-by": "tested",
+    "suggested-by": "suggested",
+    "suggested by": "suggested",
+    "diagnosed-by": "diagnosed",
+    "analyzed-by": "diagnosed",
+}
+_TRAILER_RE = re.compile(r"^([A-Za-z][A-Za-z -]{2,20}?)\s*:\s*(.*)$")
+_GLUED_RE = re.compile(r"\s+(?:Discussion|Backpatch[a-z-]*|Author|Reviewed-by|Reported-by)\s*:", re.I)
+_EMAIL_RE = re.compile(r"<([^<>]*)>?|([^\s<>]+@[\w.-]+\w)")
+
+
+def _flip_quoted(m: re.Match) -> str:
+    # "Last, First (Dept)" -> First Last
+    q = re.sub(r"\(.*?\)", "", m.group(1)).strip()
+    last, sep, first = q.partition(",")
+    return f"{first.strip()} {last.strip()}" if sep else q
+
+
+def parse_people(value: str) -> list[tuple[str, str | None]]:
+    """Split a trailer value into (name, email_or_None) pairs."""
+    value = _GLUED_RE.split(value.strip())[0]
+    m = re.match(r"^([^\s,]+),\s*([^\s,]+)\s*(<[^>]*>)$", value)   # Last, First <addr>
+    if m:
+        value = f"{m.group(2)} {m.group(1)} {m.group(3)}"
+    value = re.sub(r'"([^"]+)"', _flip_quoted, value)
+    people = []
+    for part in _split_trailer_names(value):
+        for sub in re.split(r"\s+and\s+", part):
+            em = _EMAIL_RE.search(sub)
+            email = (em.group(1) or em.group(2) or "").strip().lower() if em else ""
+            name = _clean_name(_EMAIL_RE.sub(" ", sub))
+            if "@" not in email:
+                email = None
+            if not name and not email:
+                continue
+            if not email and (_norm_name(name) in _NOISE_NAMES or len(name) < 3):
+                continue
+            if len(name) > 60 or name.lower().startswith(("http", "www.")):
+                continue
+            people.append((name, email))
+    return people
+
+
+def parse_trailer(line: str) -> tuple[str, list[tuple[str, str | None]]] | None:
+    """(role, people) for a credit trailer line, else None."""
+    m = _TRAILER_RE.match(line.strip())
+    if not m:
+        return None
+    role = TRAILER_ROLES.get(m.group(1).strip().lower())
+    if not role:
+        return None
+    return role, parse_people(m.group(2))
+
 
 def collect_all_mentions(raw: str) -> list[tuple[str, str, str, str, str | None]]:
-    """Parse every Author/Co-authored-by/Reviewed-by trailer for EVERY
-    contributor (not just Percona). Handles both 'Name <email>' and the very
-    common no-email comma-separated form 'Reviewed-by: Name1, Name2, Name3'
-    -- roughly a third of all Reviewed-by trailers in this repo have no email
-    at all, and a plain email-only regex silently drops them.
+    """Parse every authored/reviewed credit trailer for EVERY contributor
+    (not just Percona). Handles both 'Name <email>' and the very common
+    no-email comma-separated form 'Reviewed-by: Name1, Name2, Name3' --
+    roughly a third of all Reviewed-by trailers in this repo have no email at
+    all, and a plain email-only regex silently drops them.
 
     Returns (role, commit_date, subject, name, email_or_None) tuples.
     """
     header_re = re.compile(r"^COMMIT ([0-9a-f]{40}) (\d{4}-\d{2}-\d{2}) (.+)$")
-    role_re   = re.compile(r"^(Author|Co-authored-by|Reviewed-by):\s*(.*)$", re.IGNORECASE)
-    email_re  = re.compile(r"<([^<>]+)>?")
 
     mentions = []
     for block in re.split(r"\nENDCOMMIT\n", raw):
@@ -351,23 +464,11 @@ def collect_all_mentions(raw: str) -> list[tuple[str, str, str, str, str | None]
         commit_date = m.group(2)
         subject = m.group(3).strip()
         for line in lines[1:]:
-            rm = role_re.match(line.strip())
-            if not rm:
+            t = parse_trailer(line)
+            if not t or t[0] not in ("authored", "reviewed"):
                 continue
-            role = rm.group(1).lower()
-            for part in _split_trailer_names(rm.group(2)):
-                em = email_re.search(part)
-                if em:
-                    email = em.group(1).strip().lower()
-                    name = _clean_name(part[: em.start()])
-                else:
-                    email = None
-                    name = _clean_name(part)
-                if not name and not email:
-                    continue
-                if _norm_name(name) in _NOISE_NAMES and not email:
-                    continue
-                mentions.append((role, commit_date, subject, name, email))
+            for name, email in t[1]:
+                mentions.append((t[0], commit_date, subject, name, email))
     return mentions
 
 
