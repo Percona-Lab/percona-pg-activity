@@ -7,8 +7,11 @@ only visible when logged in, to that event's volunteers and admins, so the
 daily build cannot read them. Run this locally with your own session instead:
 
     python3 import_volunteering.py \\
-        --session www.postgresql.eu=<sessionid> \\
-        --session postgresql.us=<sessionid>
+        --session 'www.postgresql.eu=<sessionid>' \\
+        --session 'postgresql.us=<sessionid>'
+
+(Quote each value; pasting the whole cookie string "csrftoken=...; sessionid=..."
+also works, the session id is picked out of it.)
 
 Get each <sessionid> from your browser while logged in to that site
 (developer tools > Storage/Application > Cookies > "sessionid"). Each site
@@ -64,7 +67,12 @@ def main() -> None:
     parser.add_argument("--cache", default=str(cc.ROOT / ".cache" / "http"), metavar="DIR")
     args = parser.parse_args()
 
-    sessions = dict(s.split("=", 1) for s in args.session if "=" in s)
+    # Accept a bare session id or a whole pasted cookie string ("csrftoken=..; sessionid=..").
+    sessions = {}
+    for item in args.session:
+        host, _, value = item.partition("=")
+        m = cc.re.search(r"(?:^|;\s*)sessionid=([^;\s]+)", value)
+        sessions[host.strip()] = m.group(1) if m else value.strip()
     if not sessions:
         parser.error("give at least one --session HOST=SESSIONID")
     http = cc.Http(Path(args.cache))

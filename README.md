@@ -59,8 +59,8 @@ Volunteer schedules on the conference system (`/events/<event>/volunteer/`) need
 so the daily build can't read them. Import them locally with your own session instead:
 
 ```
-python3 import_volunteering.py --session www.postgresql.eu=<sessionid> --session postgresql.us=<sessionid>
-python3 import_volunteering.py --session www.postgresql.eu=<sessionid> --write   # merge into community/volunteering.csv
+python3 import_volunteering.py --session 'www.postgresql.eu=<sessionid>' --session 'postgresql.us=<sessionid>'
+python3 import_volunteering.py --session 'www.postgresql.eu=<sessionid>' --write   # merge into community/volunteering.csv
 ```
 
 `<sessionid>` is the `sessionid` cookie of that site while you're logged in (browser developer
