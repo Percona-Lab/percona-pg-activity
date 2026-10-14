@@ -613,10 +613,10 @@ function codeItem(c) {
 }
 
 // ═════ Code by people tab ═══════════════════════════════════════════════════
-function rankingPool(months) {
+function rankingPool(src, months) {
   const S = state.ranking, set = new Set(months), idx = Object.fromEntries(RANK.slots.map((k, i) => [k, i]));
   const pool = [];
-  for (const p of RANK.people) {
+  for (const p of src.people) {
     if (p.committer && !S.committers) continue;
     const t = RANK.slots.map(() => 0);
     for (const [m, v] of Object.entries(p.months)) if (set.has(m)) v.forEach((n, i) => { t[i] += n; });
@@ -635,17 +635,23 @@ const tipTitle = d => `#${d.rank} ${d.name}${d.company ? ` · ${d.company}` : ""
 
 function renderRanking(app, toolbar) {
   const S = state.ranking;
-  toolbar.append(seg(RANGES.map(r => [r.id, r.label || yearLabel()]), S.range, id => { S.range = id; render(); }, "Time range"),
+  const cyc = RANK.cycle;
+  if (S.range === "cycle" && !cyc) S.range = "all";
+  const ranges = RANGES.map(r => [r.id, r.label || yearLabel()]).concat(cyc ? [["cycle", `PostgreSQL ${cyc.version} cycle`]] : []);
+  toolbar.append(seg(ranges, S.range, id => { S.range = id; render(); }, "Time range"),
     seg([["on", "Committers included"], ["off", "Committers excluded"]], S.committers ? "on" : "off",
       id => { S.committers = id === "on"; render(); }, "Committers"));
-  const months = RANGES.find(r => r.id === S.range).months(allMonths());
-  const pool = rankingPool(months), mine = ours(pool);
-  const rangeName = RANGES.find(r => r.id === S.range).label || yearLabel();
-  const changes = months.reduce((a, m) => a + (RANK.changes_by_month[m] || 0), 0);
+  const src = S.range === "cycle" ? cyc : RANK;
+  const months = S.range === "cycle" ? Object.keys(cyc.changes_by_month) : RANGES.find(r => r.id === S.range).months(allMonths());
+  const pool = rankingPool(src, months), mine = ours(pool);
+  const changes = months.reduce((a, m) => a + (src.changes_by_month[m] || 0), 0);
+  const scope = S.range === "cycle"
+    ? `authored or reviewed at least one of ${fmt(changes)} commits on ${cyc.branch.replace("origin/", "")} since it split off on ${shortDate(cyc.base_date)}`
+    : `${RANGES.find(r => r.id === S.range).label || yearLabel()} · authored or reviewed at least one of ${fmt(changes)} PostgreSQL changes`;
   const best = mine[0];
 
   app.append(el("section", { class: "kpis", style: "--n: 3", "aria-label": "Key numbers" },
-    kpi("People credited", fmt(pool.length), `${rangeName} · authored or reviewed at least one of ${fmt(changes)} PostgreSQL changes`, true),
+    kpi("People credited", fmt(pool.length), scope, true),
     kpi(`Highest ranked from ${RANK.company}`, best ? `#${best.rank}` : "–", best ? null : "No credits in this range"),
     kpi(`${RANK.company} in the top 50`, fmt(mine.filter(d => d.rank <= 50).length), `${fmt(mine.length)} ${RANK.company} engineers credited in total`),
     kpi(`${RANK.company} credits`, fmt(mine.reduce((a, d) => a + d.t, 0)), `${fmt(mine.reduce((a, d) => a + d.a, 0))} authored · ${fmt(mine.reduce((a, d) => a + d.r, 0))} reviewed`)));
@@ -1057,7 +1063,7 @@ function renderBlog(app, toolbar) {
 // ═════ page shell ════════════════════════════════════════════════════════════
 const FOOTERS = {
   code: [el("p", {}, el("b", { text: "How this is counted. " }), "A change counts as authored when a Percona engineer is in its Author: or Co-authored-by: trailer, and reviewed for Reviewed-by:. A fix backpatched to several release branches is counted once. Company attribution uses email domains plus a curated name list; changes with no known employer appear as Unattributed.")],
-  ranking: [el("p", {}, el("b", { text: "How this is counted. " }), "One credit per person per change, a fix backpatched to several branches counted once. Author: and Co-authored-by: count as authored, Reviewed-by: as reviewed, Reported-by: and Diagnosed-by: as reported. Committers are credited as authors when a trailer names them, or for a change of their own with no Author: trailer but a Discussion: link; their own changes with neither, such as typo fixes and version stamps, are not counted. Many commits carry no Reviewed-by: at all, so review numbers are a floor.")],
+  ranking: [el("p", {}, el("b", { text: "How this is counted. " }), "One credit per person per change, a fix backpatched to several branches counted once; the release cycle view counts every commit on the newest stable branch since it split from the previous one. Author: and Co-authored-by: count as authored, Reviewed-by: as reviewed, Reported-by: and Diagnosed-by: as reported. Committers are credited as authors when a trailer names them, or for a change of their own with no Author: trailer but a Discussion: link; their own changes with neither, such as typo fixes and version stamps, are not counted. Many commits carry no Reviewed-by: at all, so review numbers are a floor.")],
   community: [el("p", {}, el("b", { text: "Where this comes from. " }), "Schedules and organisation pages of PostgreSQL Europe, PgUS, PGDay UK, PGConf.dev and Swiss PGDay events, postgresql.org contributor and release-note lists, Planet PostgreSQL and Hackorum. A role counts when the event lists the person with Percona as company, or they are on our people list and the source names no other employer. Meetups, community days and on-site volunteering that no website lists come from a hand-curated file.")],
   blog: [el("p", {}, el("b", { text: "Where this comes from. " }), "The PostgreSQL category feed of percona.com/blog and the PostgreSQL-tagged posts of percona.community.")],
 };

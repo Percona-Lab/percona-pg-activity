@@ -26,10 +26,13 @@ jobs:
       - uses: actions/checkout@v7
 
       # Commit history + trees (for "which area of PostgreSQL"), no file
-      # contents, only since shortly before $AFTER: ~140 MB, ~20 s.
+      # contents. It has to reach back past $AFTER and past the point where
+      # the newest stable branch split from the previous one (2025-06-29 for
+      # REL_19_STABLE), for the release cycle ranking; move it forward when
+      # REL_20_STABLE appears.
       - name: Clone PostgreSQL history
         run: |
-          git clone --filter=blob:none --shallow-since=2025-11-01 \
+          git clone --filter=blob:none --shallow-since=2025-06-01 \
             --no-single-branch --no-checkout https://github.com/postgres/postgres.git pg
 
       # Conference pages, feeds etc. Past events rarely change, so keep the

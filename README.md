@@ -9,7 +9,7 @@ Four tabs:
 - **Code contributions** (2026, filterable by month range): changes authored and reviewed,
   company ranking, engineers, areas of PostgreSQL, and every change with Percona credit
   (summary, roles, PostgreSQL versions, links), exportable as Markdown or CSV.
-- **Code by people** (same range filter): everyone credited in PostgreSQL commits,
+- **Code by people** (same range filter, or the current release cycle): everyone credited in PostgreSQL commits,
   ranked by changes authored + reviewed, committers included by default, Percona
   engineers highlighted; scatter, top 20 and a sortable, exportable table.
 - **Events & community** (since 2022, by year): talks, organiser / program / Code of
