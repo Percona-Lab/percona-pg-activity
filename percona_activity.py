@@ -187,6 +187,7 @@ COMPANY_NAME_OVERRIDES: dict[str, str] = {
     "dmitry dolgov": "Red Hat",
     "joe conway": "Amazon",
     "rahila syed": "Microsoft",
+    "ayush tiwari": "Microsoft",
 }
 
 
