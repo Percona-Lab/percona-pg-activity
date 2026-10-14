@@ -22,7 +22,8 @@ manually (*Actions → Update PG activity dashboard → Run workflow*). It:
 
 1. runs `collect_community.py` → `community.json` (HTTP responses are cached between runs
    with `actions/cache`, so a warm run only re-fetches current events and feeds),
-2. clones PostgreSQL's recent history and runs `build_dashboard_data.py` → `data.json`,
+2. clones PostgreSQL's recent history and runs `build_dashboard_data.py` → `data.json`
+   and `build_ranking_data.py` → `ranking.json`,
 3. runs `percona_activity.py --company-statistics --company-chart` → `chart.svg`, `stats.md`,
 4. publishes everything with `index.html` to GitHub Pages.
 
@@ -30,6 +31,7 @@ manually (*Actions → Update PG activity dashboard → Run workflow*). It:
 |---|---|
 | `percona_activity.py` | Identity and company attribution for commits (`COMPANY_DOMAINS`, `COMPANY_NAME_OVERRIDES`, `MANUAL_IDENTITIES`); also a standalone CLI report |
 | `build_dashboard_data.py` | Builds `data.json`: per-change details, versions, areas, categories, monthly company counts |
+| `build_ranking_data.py` | Builds `ranking.json`: monthly authored / reviewed / reported counts for every contributor, committers included |
 | `collect_community.py` | Builds `community.json` from conference sites, blogs, Planet PostgreSQL, Hackorum, postgresql.org |
 | `community/people.json` | Percona people to look for at events, with optional `since`/`until` dates |
 | `community/manual.json` | Hand-curated meetups, community days, volunteering and projects no website lists |

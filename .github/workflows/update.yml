@@ -50,6 +50,7 @@ jobs:
         run: |
           mkdir -p ../site
           python3 ../build_dashboard_data.py --after "$AFTER" --output ../site/data.json
+          python3 ../build_ranking_data.py --after "$AFTER" --output ../site/ranking.json
           python3 ../percona_activity.py --after "$AFTER" \
             --company-statistics --company-chart \
             --company-chart-output ../site/chart.svg > ../site/stats.md
