@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PostgreSQL Contributions 2026</title>
+  <style>
+    :root { --bg: #f6f8fa; --fg: #24292f; --muted: #6e7781; --card: #ffffff; --link: #0969da; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --fg: #e6edf3; --muted: #8d96a0; --card: #ffffff; --link: #4493f8; }
+    }
+    body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif;
+           max-width: 820px; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
+    h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+    p { color: var(--muted); margin-top: 0; }
+    a { color: var(--link); }
+    .chart { background: var(--card); border-radius: 8px; padding: 8px; }
+    .chart img { display: block; width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <h1>PostgreSQL commits &amp; reviews by company, 2026</h1>
+  <p>
+    Last updated: <span id="updated">…</span> · PostgreSQL HEAD: <code id="head">…</code><br>
+    Source: <code>git log</code> of postgres/postgres (author and <code>Reviewed-by:</code> trailers, backports deduplicated).
+    <a href="stats.md">Raw tables (Markdown)</a> ·
+    <a href="https://github.com/Percona-Lab/percona-pg-activity">Script &amp; company mapping</a>
+  </p>
+  <div class="chart"><img src="chart.svg" alt="Bar charts of commits and reviews per company in 2026"></div>
+  <script>
+    for (const [id, file] of [["updated", "updated.txt"], ["head", "head.txt"]])
+      fetch(file).then(r => r.ok ? r.text() : "").then(t => { if (t) document.getElementById(id).textContent = t.trim(); });
+  </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+name: Update PG activity chart
+
+on:
+  schedule:
+    - cron: "17 5 * * *"     # daily, 05:17 UTC
+  workflow_dispatch:          # manual "Run workflow" button
+  push:
+    branches: [main]          # rebuild when the script or page changes
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  AFTER: "2025-12-31"         # i.e. everything in 2026
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Commits only (no trees/blobs): fast, and all that `git log` needs.
+      - name: Clone PostgreSQL history
+        run: git clone --filter=tree:0 --no-checkout https://github.com/postgres/postgres.git pg
+
+      - name: Generate chart
+        working-directory: pg
+        run: |
+          mkdir -p ../site
+          python3 ../percona_activity.py --after "$AFTER" \
+            --company-statistics --company-chart \
+            --company-chart-output ../site/chart.svg > ../site/stats.md
+          cp ../index.html ../site/
+          date -u +"%Y-%m-%d %H:%M UTC" > ../site/updated.txt
+          git log -1 --format='%h %s' origin/master > ../site/head.txt
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
