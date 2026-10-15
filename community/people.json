@@ -10,6 +10,13 @@
       "since": "2024-11-01"
     },
     {
+      "name": "Ashish Kumar Mehra",
+      "aliases": [
+        "Ashish Mehra"
+      ],
+      "since": "2024-07-01"
+    },
+    {
       "name": "Dimitri Vanoverbeke"
     },
     {
@@ -33,7 +40,8 @@
       "name": "Naeem Akhter"
     },
     {
-      "name": "Natalia Marukovich"
+      "name": "Natalia Marukovich",
+      "since": "2022-01-01"
     },
     {
       "name": "Pep Pla"
@@ -49,6 +57,10 @@
       "name": "Robert Bernier"
     },
     {
+      "name": "Sonia Valeja",
+      "since": "2022-01-01"
+    },
+    {
       "name": "Stefan Fercot",
       "since": "2026-08-01"
     },
@@ -56,10 +68,12 @@
       "name": "Takis Stathopoulos",
       "aliases": [
         "Panagiotis Stathopoulos"
-      ]
+      ],
+      "since": "2022-02-01"
     },
     {
-      "name": "Yoann La Cancellera"
+      "name": "Yoann La Cancellera",
+      "since": "2022-09-01"
     },
     {
       "name": "Zsolt Parragi"
