@@ -47,6 +47,8 @@ manually (*Actions → Update PG activity dashboard → Run workflow*). It:
 | PostgreSQL Europe events (postgresql.eu): PGConf.EU, PGConf.DE, PGConf.PL, FOSDEM PGDay, PGDay Paris, Nordic PGDay, PGDay Lowlands, PGDay Napoli, PGDay Med | talks (`schedule.xml`), speaker companies, organisers and committees (`/organisation/`), slides and video links |
 | PgUS (postgresql.us), PGDay UK (pgday.uk), PGConf.dev (pgevents.ca) | same, via the same conference system |
 | Swiss PGDay (pgday.ch) | talks and committees from its own site |
+| PGConf India (pgconf.in) | talks with slides/video, core committee |
+| postgresql.org event list | coverage check: conferences no collector reads are listed on the page under "Not tracked automatically yet" |
 | percona.com/blog, percona.community | PostgreSQL posts (RSS) |
 | Planet PostgreSQL | Percona feeds and recent post count |
 | Hackorum (`/team/percona`) | mailing-list messages, patches, per year |

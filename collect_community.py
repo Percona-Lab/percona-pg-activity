@@ -279,14 +279,14 @@ def conference_sites(http: Http, inst: dict) -> list[tuple[str, int]]:
             year = int(m.group(2) or m.group(3))
             if START_YEAR <= year <= date.today().year + 1:
                 sites[url] = year
-    # Index pages can lag (2026.pgconf.de was linked nowhere while its schedule
-    # was live), so also probe this and next year for every yearly domain seen.
+    # Index pages can lag or skip years (2026.pgconf.de and 2025.pgdaychicago.org
+    # were linked nowhere), so probe every year for every yearly domain seen.
     for url in list(sites):
         m = re.match(r"https?://\d{4}\.([a-z0-9.-]+)/$", url)
         if m:
-            for year in (date.today().year, date.today().year + 1):
+            for year in range(START_YEAR, date.today().year + 2):
                 guess = f"https://{year}.{m.group(1)}/"
-                if guess not in sites and http.get(guess, max_age_days=7, probe=True) is not None:
+                if guess not in sites and http.get(guess, max_age_days=365 if year < date.today().year else 7, probe=True) is not None:
                     sites[guess] = year
     return sorted(sites.items(), key=lambda kv: (kv[1], kv[0]))
 
@@ -312,7 +312,22 @@ def pgeu_events(http: Http, inst: dict):
         if not slug:
             domain = urlparse(site).netloc.split(".", 1)[1]
             prefix = inst["guess"].get(domain)
-            slug = f"{prefix}{year}" if prefix else None
+            if prefix:
+                cand = f"{prefix}{year}"
+                if cand in slugs or http.get(f"{inst['base']}/events/{cand}/schedule.xml",
+                                             max_age_days=365 if year < date.today().year else 7, probe=True):
+                    slug = cand
+            else:
+                # Not every site links its slug (2025.pgday.paris doesn't): try
+                # the domain's letters ("pgday.paris" -> pgdayparis2025), with
+                # and without the TLD, and keep the one that has a schedule.
+                labels = domain.split(".")
+                for cand in dict.fromkeys(["".join(labels), "".join(labels[:-1])]):
+                    cand = re.sub(r"[^a-z]", "", cand) + str(year)
+                    if http.get(f"{inst['base']}/events/{cand}/schedule.xml",
+                                max_age_days=365 if year < date.today().year else 7, probe=True):
+                        slug = cand
+                        break
         if slug:
             yield slug, site, year, home
 
@@ -473,6 +488,118 @@ def collect_swiss(http: Http, roster: Roster, out: dict) -> None:
         print(f"  {ev_id:<22} {start}  percona={sum(1 for a in out['activities'] if a['event'] == ev_id)}")
 
 
+# ── PGConf India (confbase, a Next.js app on pgconf.in) ─────────────────────
+
+CONFBASE_SERIES = [
+    {"base": "https://pgconf.in", "path": "pgconf-india/pgconf-india-{year}", "name": "PGConf India {year}", "id": "pgconfindia{year}"},
+]
+
+
+def rsc_payload(page: str) -> str:
+    """The data a Next.js app streams into its HTML (self.__next_f.push chunks)."""
+    out = []
+    for chunk in re.findall(r'self\.__next_f\.push\(\[1,"(.*?)"\]\)', page, re.S):
+        try:
+            out.append(json.loads('"' + chunk + '"'))
+        except ValueError:
+            pass
+    return "".join(out)
+
+
+def collect_confbase(http: Http, roster: Roster, out: dict) -> None:
+    for series in CONFBASE_SERIES:
+        for year in range(START_YEAR, date.today().year + 2):
+            old = year < date.today().year
+            url = f"{series['base']}/{series['path'].format(year=year)}"
+            payload = rsc_payload(http.get(url + "/talks", max_age_days=365 if old else 0.9, probe=True) or "")
+            start = payload.find('"items":[')
+            if start < 0:
+                continue
+            try:
+                items, _ = json.JSONDecoder().raw_decode(payload[start + len('"items":'):])
+            except ValueError:
+                continue
+            days = sorted(d for d in ((it.get("scheduleEvent") or {}).get("date") for it in items) if d)
+            if not days:
+                continue
+            ev_id = series["id"].format(year=year)
+            conf = {"id": ev_id, "name": series["name"].format(year=year), "start": days[0], "end": days[-1], "url": url, "source": urlparse(url).netloc}
+            add_event(out, conf)
+            recent = conf["end"] >= (date.today() - timedelta(days=DISCOVERY_DAYS)).isoformat()
+            for it in items:
+                speakers = it.get("speakers") or []
+                day = (it.get("scheduleEvent") or {}).get("date") or conf["start"]
+                for sp in speakers:
+                    company = sp.get("organization") if recent else None
+                    hit = roster.match(sp.get("name", ""), company, day, f"{ev_id} talk")
+                    if not hit:
+                        continue
+                    slides = it.get("presentationUrl") or None
+                    out["activities"].append({
+                        "kind": "talk", "person": hit[0], "evidence": hit[1], "company_listed": sp.get("organization"),
+                        "event": ev_id, "date": day, "title": " ".join((it.get("title") or "").split()),
+                        "url": f"{url}/talks", "track": it.get("trackName") or it.get("type"),
+                        "slides": slides if slides and slides.startswith("http") else None, "video": it.get("videoUrl") or None,
+                        "co_speakers": [s.get("name") for s in speakers if s is not sp],
+                    })
+            committee = rsc_payload(http.get(url + "/committee", max_age_days=365 if old else 0.9) or "")
+            seen = set()
+            for name, org in re.findall(r'"h3",null,\{[^{}]*"children":"([^"]+)"\}\],null,\["\$","p",null,\{[^{}]*"children":"([^"]*)"', committee):
+                hit = roster.match(name, org if recent else None, conf["start"], f"{ev_id} organiser")
+                if hit and hit[0] not in seen:
+                    seen.add(hit[0])
+                    out["activities"].append({"kind": "organiser", "person": hit[0], "evidence": hit[1], "company_listed": org,
+                                              "event": ev_id, "date": conf["start"], "url": url + "/committee", "title": "Core Committee"})
+            print(f"  {ev_id:<22} {conf['start']}  talks={len(items):<3} percona={sum(1 for a in out['activities'] if a['event'] == ev_id)}")
+
+
+# ── Coverage: which postgresql.org-listed conferences we don't scrape ───────
+
+PG_EVENT_PAGES = ["https://www.postgresql.org/about/events/", "https://www.postgresql.org/about/eventarchive/"]
+
+
+def collect_coverage(http: Http, out: dict, scanned: dict) -> None:
+    """List the conferences postgresql.org knows about (recognised community
+    events first) and mark the ones no collector covers, so gaps like a
+    missing PGConf.BR show up on their own instead of being noticed late."""
+    def key(name: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", norm(re.sub(r"\b(19|20)\d\d\b", "", name)).replace("postgresql", "pg").replace("conference", "conf"))
+
+    def site_key(url: str, year: str) -> tuple[str, str]:
+        host = urlparse(url).netloc.lower().removeprefix("www.")
+        return re.sub(r"^(?:19|20)\d\d\.", "", host), year
+
+    known = {(key(e.get("name", "")), (e.get("start") or "")[:4]) for e in scanned.values()}
+    known_sites = {site_key(e["url"], (e.get("start") or "")[:4]) for e in scanned.values() if e.get("url")}
+    rows = []
+    for page_url in PG_EVENT_PAGES:
+        page = http.get(page_url) or ""
+        for block in re.split(r'<hr class="eventseparator"', page)[1:]:
+            m = re.search(r'<a href="(/about/event/[^"]+)">(.*?)</a>', block, re.S)
+            d = re.search(r'event-highlight">\s*(\d{4}-\d{2}-\d{2})', block)
+            if not m or not d or d.group(1)[:4] < str(START_YEAR):
+                continue
+            name = text_of(m.group(2))
+            if not re.search(r"pgconf|pgday|conference|summit|postgres.*(day|conf)|nordic|fosdem|\bconf\b", name, re.I):
+                continue          # meetups, webinars, trainings
+            url, year = "https://www.postgresql.org" + m.group(1), d.group(1)[:4]
+            covered = (key(name), year) in known
+            if not covered:
+                # Names differ ("PostgreSQL Conference Germany" vs "PGConf.DE"):
+                # compare the website the event page links to instead.
+                detail = http.get(url, max_age_days=365 if d.group(1) < date.today().isoformat() else 7) or ""
+                links = re.findall(r'https?://[^\s"<>]+', detail)
+                text = (name + " " + text_of(detail)).lower()
+                covered = (any(site_key(link, year) in known_sites for link in links if "postgresql.org" not in link)
+                           or any(y == year and re.search(rf"\b{re.escape(dom)}\b", text) for dom, y in known_sites))
+            rows.append({"name": name, "date": d.group(1), "url": url,
+                         "recognised": "PostgreSQL_Badge" in block, "covered": covered})
+    uniq = {(r["name"], r["date"]): r for r in rows}
+    out["coverage"] = sorted(uniq.values(), key=lambda r: r["date"], reverse=True)
+    missing = [r for r in out["coverage"] if not r["covered"]]
+    print(f"  coverage: {len(out['coverage'])} conferences listed on postgresql.org, {len(missing)} not scraped")
+
+
 # ── Blogs ───────────────────────────────────────────────────────────────────
 
 NS = {"dc": "http://purl.org/dc/elements/1.1/", "content": "http://purl.org/rss/1.0/modules/content/"}
@@ -508,7 +635,7 @@ def collect_blogs(http: Http, roster: Roster, out: dict) -> None:
     cutoff = f"{START_YEAR}-01-01"
     seen = set()
     for page in range(1, 80):
-        items = list(rss_items(http.get(PERCONA_BLOG_FEED.format(page=page), max_age_days=0.9 if page <= 2 else 14)))
+        items = list(rss_items(http.get(PERCONA_BLOG_FEED.format(page=page), max_age_days=0.9 if page <= 5 else 14)))
         if not items:
             break
         oldest = None
@@ -635,14 +762,16 @@ def github_stats(http: Http, repo: str | None) -> dict:
 
 def build(http: Http) -> dict:
     roster = Roster(ROOT / "community" / "people.json")
-    out = {"events": {}, "activities": [], "roles": [], "projects": [], "posts": [], "recognition": [], "planet": None, "hackorum": None}
+    out = {"events": {}, "activities": [], "roles": [], "projects": [], "posts": [], "recognition": [], "planet": None, "hackorum": None, "coverage": []}
     steps = [
         *[(f"pgeu-system {i['base']}", lambda i=i: collect_pgeu(http, roster, i, out)) for i in PGEU_INSTANCES],
         ("Swiss PGDay", lambda: collect_swiss(http, roster, out)),
+        ("PGConf India", lambda: collect_confbase(http, roster, out)),
         ("blogs", lambda: collect_blogs(http, roster, out)),
         ("Planet PostgreSQL", lambda: collect_planet(http, roster, out)),
         ("Hackorum", lambda: collect_hackorum(http, out)),
         ("postgresql.org recognition", lambda: collect_recognition(http, roster, out)),
+        ("coverage", lambda: collect_coverage(http, out, dict(out["events"]))),
     ]
     errors = []
     for label, step in steps:

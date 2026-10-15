@@ -939,6 +939,15 @@ function renderCommunity(app, toolbar) {
         el("div", { text: p.description }), p.people && p.people.length ? el("div", { text: `People: ${p.people.join(", ")}` }) : null)))));
 
   grid.append(renderEvents(acts));
+
+  // Conferences postgresql.org lists that no collector reads yet.
+  const gaps = (COMM.coverage || []).filter(r => !r.covered && (S.year === "all" || r.date.startsWith(S.year)));
+  if (gaps.length) grid.append(el("section", { class: "card span-12" },
+    el("h2", { text: "Not tracked automatically yet" }),
+    el("p", { class: "sub", text: `${gaps.length} conferences listed on postgresql.org whose speakers and organisers this page cannot read yet. If Percona was there, add it to community/manual.json or tell the maintainers.` }),
+    el("details", { class: "table-view" }, el("summary", { text: "Show the list" }),
+      el("ul", { class: "list-plain", style: "margin-top:10px" }, gaps.map(r =>
+        el("li", {}, el("span", { class: "date", text: `${shortDate(r.date)} · ` }), ext(r.url, r.name), r.recognised ? " · recognised community event" : ""))))));
 }
 
 function renderEvents(acts) {
