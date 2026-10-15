@@ -1,43 +1,247 @@
 {
   "_comment": "Hand-curated community work that no scraped website lists. 'roles' are ongoing (meetups, maintainership); 'activities' are dated one-offs and may reference a scraped event id (e.g. pgconfeu2025) or define their own event in 'events'; 'projects' are open source PostgreSQL ecosystem projects. Only add things that are public and true for the time the person was at Percona.",
   "roles": [
-    {"person": "Alastair Turner", "role": "Co-organiser", "group": "London PostgreSQL Meetup", "since": "2024", "note": "About five events a year; also helped set up the Manchester group and presented in Edinburgh", "url": "https://www.postgresql.org/community/user-groups/"},
-    {"person": "Takis Stathopoulos", "role": "Co-organiser", "group": "Athens PostgreSQL Meetup", "note": "About three events a year", "url": "https://www.postgresql.org/community/user-groups/"},
-    {"person": "Yoann La Cancellera", "role": "Co-organiser", "group": "PostgreSQL Lille Meetup", "since": "2023", "url": "https://www.postgresql.org/community/user-groups/"},
-    {"person": "Pep Pla", "role": "Volunteer", "group": "Barcelona / Valencia PostgreSQL Meetup"},
-    {"person": "Kai Wagner", "role": "Contributor", "group": "PostgreSQL Europe conference system (pgeu-system)", "url": "https://git.postgresql.org/gitweb/?p=pgeu-system.git"}
+    {
+      "person": "Alastair Turner",
+      "role": "Co-organiser",
+      "group": "London PostgreSQL Meetup",
+      "since": "2024",
+      "note": "About five events a year; also helped set up the Manchester group and presented in Edinburgh",
+      "url": "https://www.postgresql.org/community/user-groups/"
+    },
+    {
+      "person": "Takis Stathopoulos",
+      "role": "Co-organiser",
+      "group": "Athens PostgreSQL Meetup",
+      "note": "About three events a year",
+      "url": "https://www.postgresql.org/community/user-groups/"
+    },
+    {
+      "person": "Yoann La Cancellera",
+      "role": "Co-organiser",
+      "group": "PostgreSQL Lille Meetup",
+      "since": "2023",
+      "url": "https://www.postgresql.org/community/user-groups/"
+    },
+    {
+      "person": "Pep Pla",
+      "role": "Volunteer",
+      "group": "Barcelona / Valencia PostgreSQL Meetup"
+    },
+    {
+      "person": "Kai Wagner",
+      "role": "Contributor",
+      "group": "PostgreSQL Europe conference system (pgeu-system)",
+      "url": "https://git.postgresql.org/gitweb/?p=pgeu-system.git"
+    }
   ],
   "events": [
-    {"id": "pgconfdev2025", "name": "PGConf.dev 2025", "start": "2025-05-13", "end": "2025-05-16", "url": "https://2025.pgconf.dev/"},
-    {"id": "fosdem2025-main", "name": "FOSDEM 2025", "start": "2025-02-01", "end": "2025-02-02", "url": "https://fosdem.org/2025/"},
-    {"id": "fosdem2026-main", "name": "FOSDEM 2026", "start": "2026-01-31", "end": "2026-02-01", "url": "https://fosdem.org/2026/"},
-    {"id": "pgdayfrance2025", "name": "PGDay France 2025", "start": "2025-06-01", "end": "2025-06-01", "url": "https://pgday.fr/", "date_approximate": true},
-    {"id": "cnrejekts2025", "name": "Cloud Native Rejekts 2025", "start": "2025-03-30", "end": "2025-03-31", "url": "https://cloud-native.rejekts.io/", "date_approximate": true}
+    {
+      "id": "pgconfdev2025",
+      "name": "PGConf.dev 2025",
+      "start": "2025-05-13",
+      "end": "2025-05-16",
+      "url": "https://2025.pgconf.dev/"
+    },
+    {
+      "id": "fosdem2025-main",
+      "name": "FOSDEM 2025",
+      "start": "2025-02-01",
+      "end": "2025-02-02",
+      "url": "https://fosdem.org/2025/"
+    },
+    {
+      "id": "fosdem2026-main",
+      "name": "FOSDEM 2026",
+      "start": "2026-01-31",
+      "end": "2026-02-01",
+      "url": "https://fosdem.org/2026/"
+    },
+    {
+      "id": "pgdayfrance2025",
+      "name": "PGDay France 2025",
+      "start": "2025-06-01",
+      "end": "2025-06-01",
+      "url": "https://pgday.fr/",
+      "date_approximate": true
+    },
+    {
+      "id": "cnrejekts2025",
+      "name": "Cloud Native Rejekts 2025",
+      "start": "2025-03-30",
+      "end": "2025-03-31",
+      "url": "https://cloud-native.rejekts.io/",
+      "date_approximate": true
+    },
+    {
+      "id": "meetup-valencia-2026-10",
+      "name": "Postgres Meetup Valencia, October 2026 (Barcelona PostgreSQL Meetup)",
+      "start": "2026-10-19",
+      "end": "2026-10-19",
+      "url": "https://www.meetup.com/barcelona-postgresql-meetup-group/events/316733931/"
+    }
   ],
   "activities": [
-    {"kind": "organiser", "person": "Alastair Turner", "event": "pgconfdev2025", "date": "2025-05-13", "title": "Co-organiser, community day"},
-    {"kind": "organiser", "person": "Alastair Turner", "event": "pgconfdev2026", "date": "2026-05-19", "title": "Co-organiser, community day"},
-    {"kind": "organiser", "person": "Alastair Turner", "event": "pgconfeu2025", "date": "2025-10-21", "title": "Co-organiser, Community Events Day"},
-    {"kind": "organiser", "person": "Alastair Turner", "event": "pgconfeu2026", "date": "2026-10-20", "title": "Co-organiser, Community Events Day"},
-    {"kind": "program-committee", "person": "Alastair Turner", "event": "fosdem2026-main", "date": "2026-01-31", "title": "Databases devroom program committee"},
-    {"kind": "volunteer", "person": "Alastair Turner", "event": "fosdem2026-main", "date": "2026-01-31", "title": "Databases devroom"},
-    {"kind": "talk", "person": "Alastair Turner", "event": "cnrejekts2025", "date": "2025-03-30", "title": "PostgreSQL talk at Cloud Native Rejekts"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "pgconfeu2023", "date": "2023-12-12"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "pgconfeu2024", "date": "2024-10-22"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "pgconfeu2025", "date": "2025-10-21"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "pgconfeu2026", "date": "2026-10-20"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "fosdem2025", "date": "2025-01-31"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "fosdem2026", "date": "2026-01-30"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "fosdem2025-main", "date": "2025-02-01"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "fosdem2026-main", "date": "2026-01-31"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "pgconfde2025", "date": "2025-05-08"},
-    {"kind": "volunteer", "person": "Jan Wieremjewicz", "event": "pgconfde2026", "date": "2026-04-21"},
-    {"kind": "program-committee", "person": "Yoann La Cancellera", "event": "pgdayfrance2025", "date": "2025-06-01", "title": "Selection committee"}
+    {
+      "kind": "organiser",
+      "person": "Alastair Turner",
+      "event": "pgconfdev2025",
+      "date": "2025-05-13",
+      "title": "Co-organiser, community day"
+    },
+    {
+      "kind": "organiser",
+      "person": "Alastair Turner",
+      "event": "pgconfdev2026",
+      "date": "2026-05-19",
+      "title": "Co-organiser, community day"
+    },
+    {
+      "kind": "organiser",
+      "person": "Alastair Turner",
+      "event": "pgconfeu2025",
+      "date": "2025-10-21",
+      "title": "Co-organiser, Community Events Day"
+    },
+    {
+      "kind": "organiser",
+      "person": "Alastair Turner",
+      "event": "pgconfeu2026",
+      "date": "2026-10-20",
+      "title": "Co-organiser, Community Events Day"
+    },
+    {
+      "kind": "program-committee",
+      "person": "Alastair Turner",
+      "event": "fosdem2026-main",
+      "date": "2026-01-31",
+      "title": "Databases devroom program committee"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Alastair Turner",
+      "event": "fosdem2026-main",
+      "date": "2026-01-31",
+      "title": "Databases devroom"
+    },
+    {
+      "kind": "talk",
+      "person": "Alastair Turner",
+      "event": "cnrejekts2025",
+      "date": "2025-03-30",
+      "title": "PostgreSQL talk at Cloud Native Rejekts"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "pgconfeu2023",
+      "date": "2023-12-12"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "pgconfeu2024",
+      "date": "2024-10-22"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "pgconfeu2025",
+      "date": "2025-10-21"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "pgconfeu2026",
+      "date": "2026-10-20"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "fosdem2025",
+      "date": "2025-01-31"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "fosdem2026",
+      "date": "2026-01-30"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "fosdem2025-main",
+      "date": "2025-02-01"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "fosdem2026-main",
+      "date": "2026-01-31"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "pgconfde2025",
+      "date": "2025-05-08"
+    },
+    {
+      "kind": "volunteer",
+      "person": "Jan Wieremjewicz",
+      "event": "pgconfde2026",
+      "date": "2026-04-21"
+    },
+    {
+      "kind": "program-committee",
+      "person": "Yoann La Cancellera",
+      "event": "pgdayfrance2025",
+      "date": "2025-06-01",
+      "title": "Selection committee"
+    },
+    {
+      "kind": "talk",
+      "person": "Kai Wagner",
+      "event": "meetup-valencia-2026-10",
+      "date": "2026-10-19",
+      "title": "Managing the Postgres Developer Firehose with hackorum.dev",
+      "url": "https://www.meetup.com/barcelona-postgresql-meetup-group/events/316733931/"
+    }
   ],
   "projects": [
-    {"name": "Hackorum", "url": "https://hackorum.dev/", "repo": "https://github.com/hackorum-dev/hackorum", "people": ["Kai Wagner", "Zsolt Parragi"], "description": "A friendlier way to follow and take part in PostgreSQL development discussions on pgsql-hackers, with per-person and per-team activity."},
-    {"name": "pg_tde", "url": "https://github.com/percona/pg_tde", "repo": "https://github.com/percona/pg_tde", "people": ["Zsolt Parragi", "Andreas Karlsson", "Jan Wieremjewicz"], "description": "Open source Transparent Data Encryption for PostgreSQL, and the upstream work to make TDE possible in core PostgreSQL."},
-    {"name": "pg_stat_monitor", "url": "https://github.com/percona/pg_stat_monitor", "repo": "https://github.com/percona/pg_stat_monitor", "people": [], "description": "Query performance monitoring extension for PostgreSQL."},
-    {"name": "Percona Operator for PostgreSQL", "url": "https://github.com/percona/percona-postgresql-operator", "repo": "https://github.com/percona/percona-postgresql-operator", "people": [], "description": "Open source Kubernetes operator for running PostgreSQL in production."}
+    {
+      "name": "Hackorum",
+      "url": "https://hackorum.dev/",
+      "repo": "https://github.com/hackorum-dev/hackorum",
+      "people": [
+        "Kai Wagner",
+        "Zsolt Parragi"
+      ],
+      "description": "A friendlier way to follow and take part in PostgreSQL development discussions on pgsql-hackers, with per-person and per-team activity."
+    },
+    {
+      "name": "pg_tde",
+      "url": "https://github.com/percona/pg_tde",
+      "repo": "https://github.com/percona/pg_tde",
+      "people": [
+        "Zsolt Parragi",
+        "Andreas Karlsson",
+        "Jan Wieremjewicz"
+      ],
+      "description": "Open source Transparent Data Encryption for PostgreSQL, and the upstream work to make TDE possible in core PostgreSQL."
+    },
+    {
+      "name": "pg_stat_monitor",
+      "url": "https://github.com/percona/pg_stat_monitor",
+      "repo": "https://github.com/percona/pg_stat_monitor",
+      "people": [],
+      "description": "Query performance monitoring extension for PostgreSQL."
+    },
+    {
+      "name": "Percona Operator for PostgreSQL",
+      "url": "https://github.com/percona/percona-postgresql-operator",
+      "repo": "https://github.com/percona/percona-postgresql-operator",
+      "people": [],
+      "description": "Open source Kubernetes operator for running PostgreSQL in production."
+    }
   ]
 }
