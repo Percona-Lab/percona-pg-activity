@@ -635,7 +635,7 @@ def collect_blogs(http: Http, roster: Roster, out: dict) -> None:
     cutoff = f"{START_YEAR}-01-01"
     seen = set()
     for page in range(1, 80):
-        items = list(rss_items(http.get(PERCONA_BLOG_FEED.format(page=page), max_age_days=0.9 if page <= 5 else 14)))
+        items = list(rss_items(http.get(PERCONA_BLOG_FEED.format(page=page), max_age_days=0.1 if page <= 5 else 14)))
         if not items:
             break
         oldest = None
