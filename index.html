@@ -1009,10 +1009,12 @@ function eventItem([id, rows]) {
 // ═════ Blog tab ══════════════════════════════════════════════════════════════
 function renderBlog(app, toolbar) {
   const S = state.blog, set = (k, v) => { S[k] = v; render(); };
-  const all = COMM.posts || [];
+  const everything = COMM.posts || [];
+  const all = everything.filter(p => !p.republished);   // republished old articles don't count as new writing
   const years = yearKeys(all, p => p.date, COMM.start_year).filter(y => y <= String(new Date().getFullYear()));
   toolbar.append(seg([["all", `All years (${COMM.start_year}–)`], ...years.slice().reverse().map(y => [y, y])], S.year, v => set("year", v), "Year"));
   const posts = all.filter(p => S.year === "all" || p.date.startsWith(S.year));
+  const listed = everything.filter(p => S.year === "all" || p.date.startsWith(S.year));
   const authors = count(posts, p => p.author);
   const bySource = count(posts, p => p.source);
   const scope = S.year === "all" ? `Since ${COMM.start_year}` : S.year;
@@ -1046,27 +1048,28 @@ function renderBlog(app, toolbar) {
 
   const list = el("ul", { class: "feed" }), countEl = el("span");
   const draw = () => {
-    postRows = posts.filter(p => (!S.source || p.source === S.source) && (!S.author || p.author === S.author)
+    postRows = listed.filter(p => (!S.source || p.source === S.source) && (!S.author || p.author === S.author)
       && (!S.q || `${p.title} ${p.excerpt} ${p.author}`.toLowerCase().includes(S.q.toLowerCase())));
     countEl.textContent = `${fmt(postRows.length)} post${postRows.length === 1 ? "" : "s"}`;
     pagedList(list, postRows, p => el("li", { class: "item" },
       el("div", { class: "date", text: shortDate(p.date) }),
       el("div", {},
         el("h3", {}, ext(p.url, p.title)),
-        el("div", { class: "pills" }, el("span", { class: "pill cat", text: p.source }), p.on_planet ? el("span", { class: "pill ver", text: "Planet PostgreSQL" }) : null),
+        el("div", { class: "pills" }, el("span", { class: "pill cat", text: p.source }), p.on_planet ? el("span", { class: "pill ver", text: "Planet PostgreSQL" }) : null,
+          p.republished ? el("span", { class: "pill ver", text: "Republished earlier article" }) : null),
         p.excerpt ? el("div", { class: "summary", text: p.excerpt }) : null,
         el("div", { class: "credits" }, el("b", { text: p.author || "Percona" })))),
       "No posts match these filters.");
   };
   grid.append(el("section", { class: "card span-12" },
     el("div", { class: "card-head" },
-      el("div", {}, el("h2", { text: "Posts" }), el("p", { class: "sub", text: "Newest first" })),
+      el("div", {}, el("h2", { text: "Posts" }), el("p", { class: "sub", text: "Newest first. Older articles republished under a new date are listed but not counted above." })),
       exportButtons(() => postRows, p => `- ${p.date} · **${p.title}** — ${p.author} (${p.source}) ${p.url}`,
         ["date", "title", "author", "source", "url"], p => [p.date, p.title, p.author, p.source, p.url], "percona-postgresql-posts")),
     el("div", { class: "filters" },
       searchBox(S.q, "Search posts, e.g. pg_tde, Patroni, upgrade…", v => { S.q = v; draw(); }),
-      select(S.source, posts.map(p => p.source), "Both blogs", "Blog", v => set("source", v)),
-      select(S.author, posts.map(p => p.author), "All authors", "Author", v => set("author", v))),
+      select(S.source, listed.map(p => p.source), "Both blogs", "Blog", v => set("source", v)),
+      select(S.author, listed.map(p => p.author), "All authors", "Author", v => set("author", v))),
     el("div", { class: "feed-meta" }, countEl), list));
   draw();
 }

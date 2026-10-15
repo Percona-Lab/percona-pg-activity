@@ -20,6 +20,14 @@
       "name": "Dimitri Vanoverbeke"
     },
     {
+      "name": "Hamid Akhtar",
+      "until": "2023-07-31"
+    },
+    {
+      "name": "Ibrar Ahmed",
+      "until": "2023-07-31"
+    },
+    {
       "name": "Jan Wieremjewicz",
       "since": "2022-04-01"
     },
@@ -35,6 +43,11 @@
       "aliases": [
         "Michał Nosek"
       ]
+    },
+    {
+      "name": "Muhammad Usama",
+      "since": "2022-07-01",
+      "until": "2024-11-30"
     },
     {
       "name": "Naeem Akhter"
@@ -82,9 +95,6 @@
   "exclude": [
     {
       "name": "Avi Vallarapu"
-    },
-    {
-      "name": "Muhammad Usama"
     },
     {
       "name": "Vlad Lesin"

@@ -833,7 +833,14 @@ def collect_blogs(http: Http, roster: Roster, out: dict) -> None:
             "author": roster_name(roster, it.findtext("author") or it.findtext("dc:creator", namespaces=NS) or ""),
             "on_planet": None, "excerpt": excerpt(it.findtext("description")),
         })
-    print(f"  blogs: percona.com={n1} percona.community={len(out['posts']) - n1}")
+    # Old articles get refreshed and re-dated; the feed only shows the new date.
+    # A post dated outside its author's time at Percona is such a republication.
+    for post in out["posts"]:
+        p = roster.by_key.get(norm(post["author"]))
+        if p and not (p.get("since", "0000") <= post["date"] <= p.get("until", "9999")):
+            post["republished"] = True
+    print(f"  blogs: percona.com={n1} percona.community={len(out['posts']) - n1}, "
+          f"republished={sum(1 for x in out['posts'] if x.get('republished'))}")
 
 
 def roster_name(roster: Roster, author: str) -> str:
