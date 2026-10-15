@@ -21,6 +21,7 @@
   --accent-soft: #cde2fb;
   --series-2: #eb6834;        /* reviewed / organising */
   --series-3: #1baf7a;        /* volunteering */
+  --series-4: #eda100;        /* blog posts */
   --other: #b9b8b0;           /* other companies */
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
 }
@@ -29,14 +30,14 @@
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7;
     --muted: #9a9890; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
-    --accent: #3987e5; --accent-soft: #184f95; --series-2: #d95926; --series-3: #199e70; --other: #5c5b56; --shadow: none;
+    --accent: #3987e5; --accent-soft: #184f95; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --other: #5c5b56; --shadow: none;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7;
   --muted: #9a9890; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
-  --accent: #3987e5; --accent-soft: #184f95; --series-2: #d95926; --series-3: #199e70; --other: #5c5b56; --shadow: none;
+  --accent: #3987e5; --accent-soft: #184f95; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500; --other: #5c5b56; --shadow: none;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -906,14 +907,19 @@ function renderCommunity(app, toolbar) {
     if (a.kind === "talk") p.talk++; else if (ORGANISING.has(a.kind)) p.org++; else if (a.kind === "volunteer") p.vol++;
     p.events.add(a.event);
   }
-  const posts = (COMM.posts || []).filter(p => S.year === "all" || p.date.startsWith(S.year));
+  // Original posts only (republished older articles don't count), and people
+  // from people.json who only write still get a row.
+  const posts = (COMM.posts || []).filter(p => !p.republished && (S.year === "all" || p.date.startsWith(S.year)));
   const postsBy = count(posts, p => p.author);
-  const prow = Object.entries(pc).sort((a, b) => (b[1].talk + b[1].org + b[1].vol) - (a[1].talk + a[1].org + a[1].vol) || a[0].localeCompare(b[0]));
-  const pMax = Math.max(1, ...prow.map(([, p]) => p.talk + p.org + p.vol));
+  for (const name of COMM.people || []) if (postsBy[name] && !pc[name]) pc[name] = { talk: 0, org: 0, vol: 0, events: new Set() };
+  for (const [name, p] of Object.entries(pc)) p.post = postsBy[name] || 0;
+  const total = p => p.talk + p.org + p.vol + p.post;
+  const prow = Object.entries(pc).sort((a, b) => total(b[1]) - total(a[1]) || a[0].localeCompare(b[0]));
+  const pMax = Math.max(1, ...prow.map(([, p]) => total(p)));
   grid.append(el("section", { class: "card span-7" },
     el("div", { class: "card-head" },
-      el("div", {}, el("h2", { text: "People" }), el("p", { class: "sub", text: "Select a name to list that person's events" })),
-      legend(series.map(s => [s.label.split(" ")[0], s.color]))),
+      el("div", {}, el("h2", { text: "People" }), el("p", { class: "sub", text: "Talks, organising, volunteering and blog posts. Select a name to list that person's events" })),
+      legend([...series.map(s => [s.label.split(" ")[0], s.color]), ["Blog posts", "var(--series-4)"]])),
     prow.length ? el("div", { class: "table-scroll" }, el("table", { class: "people" },
       el("thead", {}, el("tr", {}, el("th", { text: "Person" }), el("th", { class: "num", text: "Talks" }), el("th", { class: "num", text: "Organising" }),
         el("th", { class: "num opt", text: "Volunteer" }), el("th", { class: "num opt", text: "Blog posts" }), el("th", { class: "barcell", text: "" }))),
@@ -921,11 +927,12 @@ function renderCommunity(app, toolbar) {
         el("td", {}, el("span", { class: "avatar", "aria-hidden": "true", text: initials(name) }),
           el("button", { class: "linkish", text: name, onclick: () => { S.person = name; render(); document.getElementById("events-card").scrollIntoView({ behavior: "smooth" }); } })),
         el("td", { class: "num", text: fmt(p.talk) }), el("td", { class: "num", text: fmt(p.org) }), el("td", { class: "num opt", text: fmt(p.vol) }),
-        el("td", { class: "num opt", text: fmt(postsBy[name] || 0) }),
+        el("td", { class: "num opt", text: fmt(p.post) }),
         el("td", { class: "barcell" }, el("div", { class: "minibar", "aria-hidden": "true" },
           p.talk ? el("i", { style: `width:${p.talk / pMax * 100}%;background:var(--accent)` }) : null,
           p.org ? el("i", { style: `width:${p.org / pMax * 100}%;background:var(--series-2)` }) : null,
-          p.vol ? el("i", { style: `width:${p.vol / pMax * 100}%;background:var(--series-3)` }) : null))))))) :
+          p.vol ? el("i", { style: `width:${p.vol / pMax * 100}%;background:var(--series-3)` }) : null,
+          p.post ? el("i", { style: `width:${p.post / pMax * 100}%;background:var(--series-4)` }) : null))))))) :
       el("div", { class: "empty", text: "No activity in this period." })));
 
   // Ongoing roles + projects
