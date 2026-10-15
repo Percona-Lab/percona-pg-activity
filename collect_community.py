@@ -262,6 +262,14 @@ def section_role(section: str) -> str | None:
     return None
 
 
+TRAINING_RE = re.compile(r"\b(training|workshop|tutorial|hands[- ]on|masterclass|bootcamp)\b", re.I)
+
+
+def is_training(a: dict) -> bool:
+    return (a.get("session_type") == "training" or bool(TRAINING_RE.search(a.get("track") or ""))
+            or bool(TRAINING_RE.search(a.get("title") or "")))
+
+
 NON_TALKS = re.compile(r"^(opening|closing|welcome|registration|lunch|coffee|break|keynote introduction)\b", re.I)
 
 
@@ -538,7 +546,7 @@ def collect_confbase(http: Http, roster: Roster, out: dict) -> None:
                     out["activities"].append({
                         "kind": "talk", "person": hit[0], "evidence": hit[1], "company_listed": sp.get("organization"),
                         "event": ev_id, "date": day, "title": " ".join((it.get("title") or "").split()),
-                        "url": f"{url}/talks", "track": it.get("trackName") or it.get("type"),
+                        "url": f"{url}/talks", "track": it.get("trackName"), "session_type": it.get("type"),
                         "slides": slides if slides and slides.startswith("http") else None, "video": it.get("videoUrl") or None,
                         "co_speakers": [s.get("name") for s in speakers if s is not sp],
                     })
@@ -977,6 +985,15 @@ def build(http: Http) -> dict:
             out["activities"].append({**a, "evidence": "manual"})
         out["roles"] = manual.get("roles", [])
         out["projects"] = [{**p, **github_stats(http, p.get("repo"))} for p in manual.get("projects", [])]
+
+    # Trainings and workshops: by session type, track or title. pgconf.in lists
+    # each training twice (as talk and as training): keep the training.
+    for a in out["activities"]:
+        if a["kind"] == "talk" and is_training(a):
+            a["kind"] = "training"
+    trainings = {(a["person"], a.get("event"), a.get("title")) for a in out["activities"] if a["kind"] == "training"}
+    out["activities"] = [a for a in out["activities"]
+                         if not (a["kind"] == "talk" and (a["person"], a.get("event"), a.get("title")) in trainings)]
 
     # One entry per person/role/event/title (a talk can be listed twice in a schedule).
     uniq = {}

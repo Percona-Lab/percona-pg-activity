@@ -237,12 +237,14 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 const ROLE_LABEL = { authored: "Author", reviewed: "Reviewer", reported: "Reporter", tested: "Tester", suggested: "Suggested", diagnosed: "Diagnosed" };
 const KIND = {
   talk: { label: "Talk", color: "var(--accent)" },
+  training: { label: "Training", color: "var(--accent)" },
   organiser: { label: "Organiser", color: "var(--series-2)" },
   "program-committee": { label: "Program committee", color: "var(--series-2)" },
   "coc-committee": { label: "Code of Conduct committee", color: "var(--series-2)" },
   volunteer: { label: "Volunteer", color: "var(--series-3)" },
 };
 const ORGANISING = new Set(["organiser", "program-committee", "coc-committee"]);
+const SPEAKING = new Set(["talk", "training"]);   // talks plus trainings / workshops
 const SVGNS = "http://www.w3.org/2000/svg";
 const state = {
   tab: "code",
@@ -841,7 +843,8 @@ function renderCommunity(app, toolbar) {
   toolbar.append(seg([["all", `All years (${COMM.start_year}–)`], ...years.slice().reverse().map(y => [y, y])], S.year, v => set("year", v), "Year"));
   const inYear = a => S.year === "all" || actDate(a).startsWith(S.year);
   const acts = COMM.activities.filter(inYear);
-  const talks = acts.filter(a => a.kind === "talk");
+  const talks = acts.filter(a => SPEAKING.has(a.kind));
+  const nTrainings = talks.filter(a => a.kind === "training").length;
   const organising = acts.filter(a => ORGANISING.has(a.kind));
   const volunteering = acts.filter(a => a.kind === "volunteer");
   const events = new Set(acts.map(a => a.event));
@@ -851,7 +854,7 @@ function renderCommunity(app, toolbar) {
   const scope = S.year === "all" ? `Since ${COMM.start_year}` : S.year;
 
   app.append(el("section", { class: "kpis", "aria-label": "Key numbers" },
-    kpi("Talks at PostgreSQL events", fmt(talks.length), `${scope} · by ${fmt(new Set(talks.map(a => a.person)).size)} Percona speakers at ${fmt(new Set(talks.map(a => a.event)).size)} events`, true),
+    kpi("Talks & trainings at PostgreSQL events", fmt(talks.length), `${scope} · ${nTrainings ? `incl. ${fmt(nTrainings)} training${nTrainings === 1 ? "" : "s"} / workshop${nTrainings === 1 ? "" : "s"} · ` : ""}by ${fmt(new Set(talks.map(a => a.person)).size)} Percona speakers at ${fmt(new Set(talks.map(a => a.event)).size)} events`, true),
     kpi("Organiser & committee roles", fmt(organising.length), "Organising teams, program and Code of Conduct committees"),
     kpi("Volunteering", fmt(volunteering.length), "Helping run conferences on site"),
     kpi("Events with Percona", fmt(events.size), `${fmt(people.size)} people involved`),
@@ -864,7 +867,7 @@ function renderCommunity(app, toolbar) {
   const byPeriod = S.year === "all" ? a => actDate(a).slice(0, 4) : a => actDate(a).slice(0, 7);
   const keys = S.year === "all" ? years.filter(y => y <= String(new Date().getFullYear() + 1)) : Array.from({ length: 12 }, (_, i) => `${S.year}-${String(i + 1).padStart(2, "0")}`);
   const series = [
-    { label: "Talks", color: "var(--accent)", values: count(talks, byPeriod) },
+    { label: "Talks & trainings", color: "var(--accent)", values: count(talks, byPeriod) },
     { label: "Organising & committees", color: "var(--series-2)", values: count(organising, byPeriod) },
     { label: "Volunteering", color: "var(--series-3)", values: count(volunteering, byPeriod) },
   ];
@@ -904,7 +907,7 @@ function renderCommunity(app, toolbar) {
   const pc = {};
   for (const a of acts) {
     const p = pc[a.person] ||= { talk: 0, org: 0, vol: 0, events: new Set() };
-    if (a.kind === "talk") p.talk++; else if (ORGANISING.has(a.kind)) p.org++; else if (a.kind === "volunteer") p.vol++;
+    if (SPEAKING.has(a.kind)) p.talk++; else if (ORGANISING.has(a.kind)) p.org++; else if (a.kind === "volunteer") p.vol++;
     p.events.add(a.event);
   }
   // Original posts only (republished older articles don't count), and people
@@ -919,9 +922,9 @@ function renderCommunity(app, toolbar) {
   grid.append(el("section", { class: "card span-7" },
     el("div", { class: "card-head" },
       el("div", {}, el("h2", { text: "People" }), el("p", { class: "sub", text: "Talks, organising, volunteering and blog posts. Select a name to list that person's events" })),
-      legend([...series.map(s => [s.label.split(" ")[0], s.color]), ["Blog posts", "var(--series-4)"]])),
+      legend([["Talks", "var(--accent)"], ["Organising", "var(--series-2)"], ["Volunteering", "var(--series-3)"], ["Blog posts", "var(--series-4)"]])),
     prow.length ? el("div", { class: "table-scroll" }, el("table", { class: "people" },
-      el("thead", {}, el("tr", {}, el("th", { text: "Person" }), el("th", { class: "num", text: "Talks" }), el("th", { class: "num", text: "Organising" }),
+      el("thead", {}, el("tr", {}, el("th", { text: "Person" }), el("th", { class: "num", text: "Talks", title: "Talks, trainings and workshops" }), el("th", { class: "num", text: "Organising" }),
         el("th", { class: "num opt", text: "Volunteer" }), el("th", { class: "num opt", text: "Blog posts" }), el("th", { class: "barcell", text: "" }))),
       el("tbody", {}, prow.map(([name, p]) => el("tr", {},
         el("td", {}, el("span", { class: "avatar", "aria-hidden": "true", text: initials(name) }),
@@ -985,7 +988,7 @@ function renderEvents(acts) {
     el("div", { class: "filters" },
       searchBox(S.q, "Search talks, events, people…", v => { S.q = v; draw(); }),
       select(S.person, acts.map(a => a.person), "All people", "Person", v => set("person", v)),
-      select(S.kind, ["talk", "organising", "volunteer"], "All roles", "Role", v => set("kind", v), { talk: "Talks", organising: "Organising & committees", volunteer: "Volunteering" })),
+      select(S.kind, ["talk", "training", "organising", "volunteer"], "All roles", "Role", v => set("kind", v), { talk: "Talks", training: "Trainings & workshops", organising: "Organising & committees", volunteer: "Volunteering" })),
     el("div", { class: "feed-meta" }, countEl,
       filtered ? el("button", { class: "btn", onclick: () => { Object.assign(S, { person: "", kind: "", q: "" }); render(); }, text: "Clear filters" }) : null),
     list);
@@ -995,7 +998,7 @@ function renderEvents(acts) {
 
 function eventItem([id, rows]) {
   const ev = COMM.events[id] || { name: id };
-  const order = { organiser: 0, "program-committee": 1, "coc-committee": 2, talk: 3, volunteer: 4 };
+  const order = { organiser: 0, "program-committee": 1, "coc-committee": 2, talk: 3, training: 3, volunteer: 5 };
   rows = rows.slice().sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || a.person.localeCompare(b.person));
   return el("li", { class: "item" },
     el("div", { class: "date", text: ev.date_approximate ? (ev.start || "").slice(0, 4) : shortDate(ev.start || actDate(rows[0])) }),
@@ -1003,7 +1006,7 @@ function eventItem([id, rows]) {
       el("h3", {}, safeUrl(ev.url) ? ext(ev.url, ev.name) : ev.name),
       el("ul", { class: "ev-people" }, rows.map(a => {
         const k = KIND[a.kind] || { label: a.kind, color: "var(--other)" };
-        const detail = a.kind === "talk"
+        const detail = SPEAKING.has(a.kind)
           ? [" ", safeUrl(a.url) ? ext(a.url, a.title || "Listed on the event website") : (a.title || ""),
              a.co_speakers && a.co_speakers.length ? el("span", { text: ` (with ${listNames(a.co_speakers)})` }) : null,
              el("span", { class: "mini-links" }, ext(a.slides, "Slides"), ext(a.video, "Video"))]
