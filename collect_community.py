@@ -584,6 +584,7 @@ def collect_coverage(http: Http, out: dict, scanned: dict) -> None:
                 continue          # meetups, webinars, trainings
             url, year = "https://www.postgresql.org" + m.group(1), d.group(1)[:4]
             covered = (key(name), year) in known
+            links = []
             if not covered:
                 # Names differ ("PostgreSQL Conference Germany" vs "PGConf.DE"):
                 # compare the website the event page links to instead.
@@ -592,12 +593,178 @@ def collect_coverage(http: Http, out: dict, scanned: dict) -> None:
                 text = (name + " " + text_of(detail)).lower()
                 covered = (any(site_key(link, year) in known_sites for link in links if "postgresql.org" not in link)
                            or any(y == year and re.search(rf"\b{re.escape(dom)}\b", text) for dom, y in known_sites))
+            site_links = [l.rstrip(".,);]") for l in links if not re.search(
+                r"postgresql\.org|twitter|x\.com|linkedin|facebook|mastodon|bsky|youtube|instagram|fosstodon|"
+                r"google\.com|maps\.app|t\.me|whatsapp|forms\.gle|\.pdf\b", l)]
             rows.append({"name": name, "date": d.group(1), "url": url,
-                         "recognised": "PostgreSQL_Badge" in block, "covered": covered})
+                         "recognised": "PostgreSQL_Badge" in block, "covered": covered,
+                         "links": list(dict.fromkeys(site_links))[:5] if not covered else []})
     uniq = {(r["name"], r["date"]): r for r in rows}
     out["coverage"] = sorted(uniq.values(), key=lambda r: r["date"], reverse=True)
     missing = [r for r in out["coverage"] if not r["covered"]]
     print(f"  coverage: {len(out['coverage'])} conferences listed on postgresql.org, {len(missing)} not scraped")
+
+
+# ── Radar: conferences no dedicated collector reads ─────────────────────────
+# Every postgresql.org conference the collectors above don't cover, plus the
+# sites in community/watch.json, is checked here: Indico and eventyay through
+# their APIs (with affiliations), anything else by looking for people.json
+# names on the event's schedule / programme / speaker pages.
+
+PROGRAMME_WORDS = re.compile(
+    r"schedule|program|agenda|speaker|talks?\b|sessions?|timetable|lineup|palestr|ponente|programa|"
+    r"conference|keynote|prednasejici|harmonogram", re.I)
+
+
+def radar_id(name: str, day: str) -> str:
+    return "radar-" + re.sub(r"[^a-z0-9]+", "-", norm(re.sub(r"\b(19|20)\d\d\b", "", name)))[:40].strip("-") + "-" + day[:4]
+
+
+def collect_radar(http: Http, roster: Roster, out: dict) -> None:
+    targets = [{"name": r["name"], "date": r["date"], "links": r.get("links") or [], "url": r["url"]}
+               for r in out.get("coverage", []) if not r["covered"]]
+    watch = ROOT / "community" / "watch.json"
+    if watch.exists():
+        for w in json.loads(watch.read_text()).get("events", []):
+            targets.append({"name": w["name"], "date": w["date"], "links": w.get("links", [])})
+    out.setdefault("radar", [])
+    # Several years of one conference often share a website whose programme
+    # page only shows the current edition: only the newest year may claim it.
+    newest = {}
+    for t in targets:
+        for host in {urlparse(l).netloc.removeprefix("www.") for l in t["links"]}:
+            newest[host] = max(newest.get(host, ""), t["date"])
+    for t in targets:
+        if not t["links"]:
+            out["radar"].append({**t, "status": "no website"})
+            continue
+        ev_id = radar_id(t["name"], t["date"])
+        past = is_past(t["date"])
+        conf = {"id": ev_id, "name": re.sub(r"\s*[:–-]\s*(Announcement|CFP|Returns).*$", "", t["name"]),
+                "start": t["date"], "end": t["date"], "url": t["links"][0], "source": "radar"}
+        found, status = [], "scanned"
+        indico = next((re.search(r"indico\.cern\.ch/event/(\d+)", l) for l in t["links"] if "indico.cern.ch/event/" in l), None)
+        eventyay = next((re.search(r"eventyay\.com/e/([0-9a-f]+)", l) for l in t["links"] if "eventyay.com/e/" in l), None)
+        if indico:
+            found, status = radar_indico(http, roster, indico.group(1), conf, past), "indico"
+        elif eventyay:
+            found, status = radar_eventyay(http, roster, eventyay.group(1), conf, past), "eventyay"
+        else:
+            found = radar_pages(http, roster, t["links"], conf, past, newest)
+        if found:
+            add_event(out, conf)
+            out["activities"].extend(found)
+        out["radar"].append({**t, "status": status, "percona": len(found)})
+    hits = sum(r.get("percona", 0) for r in out["radar"])
+    print(f"  radar: {len(targets)} conferences checked, {hits} Percona entries")
+
+
+def radar_indico(http, roster, event_id, conf, past):
+    data = http.get(f"https://indico.cern.ch/export/timetable/{event_id}.json", max_age_days=30 if past else 0.9)
+    try:
+        days = next(iter(json.loads(data or "{}").get("results", {}).values()), {})
+    except (ValueError, AttributeError):
+        return []
+    acts = []
+    for day, entries in days.items():
+        for e in entries.values():
+            people = e.get("presenters") or []
+            when = f"{day[:4]}-{day[4:6]}-{day[6:8]}"
+            for p in people:
+                name = p.get("name") or p.get("fullName") or ""
+                hit = roster.match(re.sub(r"^(Mr|Ms|Mrs|Dr)\.?\s+", "", name), p.get("affiliation"), when, f"{conf['id']} talk")
+                if hit and e.get("entryType") == "Contribution" and "reserve talk" not in (e.get("title") or "").lower():
+                    acts.append({"kind": "talk", "person": hit[0], "evidence": hit[1], "company_listed": p.get("affiliation"),
+                                 "event": conf["id"], "date": when, "title": text_of(e.get("title") or ""),
+                                 "url": e.get("url") or f"https://indico.cern.ch/event/{event_id}/timetable/",
+                                 "co_speakers": [q.get("name") for q in people if q is not p]})
+    return acts
+
+
+def radar_eventyay(http, roster, identifier, conf, past):
+    acts, page = [], 1
+    while page < 20:
+        raw = http.get(f"https://api.eventyay.com/v1/events/{identifier}/sessions?include=speakers,track&page%5Bsize%5D=100&page%5Bnumber%5D={page}",
+                       max_age_days=30 if past else 0.9)
+        try:
+            data = json.loads(raw or "{}")
+        except ValueError:
+            break
+        speakers = {x["id"]: x["attributes"] for x in data.get("included", []) if x.get("type") == "speaker"}
+        tracks = {x["id"]: x["attributes"].get("name") or "" for x in data.get("included", []) if x.get("type") == "track"}
+        pg_tracks = {i for i, n in tracks.items() if re.search(r"pgday|postgres", n, re.I)}
+        for sess in data.get("data", []):
+            a = sess.get("attributes", {})
+            track = (sess.get("relationships", {}).get("track", {}).get("data") or {}).get("id")
+            # Only sessions that happened, and only the PostgreSQL track of a bigger summit.
+            if a.get("state") not in ("accepted", "confirmed") or (pg_tracks and track not in pg_tracks):
+                continue
+            ids = [r["id"] for r in sess.get("relationships", {}).get("speakers", {}).get("data", [])]
+            when = (a.get("starts-at") or conf["start"])[:10]
+            for sid in ids:
+                sp = speakers.get(sid, {})
+                hit = roster.match(sp.get("name", "").strip(), sp.get("organisation"), when, f"{conf['id']} talk")
+                if hit:
+                    acts.append({"kind": "talk", "person": hit[0], "evidence": hit[1], "company_listed": sp.get("organisation"),
+                                 "event": conf["id"], "date": when, "title": text_of(a.get("title") or ""),
+                                 "url": f"https://eventyay.com/e/{identifier}/session/{sess['id']}",
+                                 "slides": a.get("slides-url") or None, "video": a.get("video-url") or None,
+                                 "co_speakers": [speakers.get(i, {}).get("name") for i in ids if i != sid]})
+        if not data.get("links", {}).get("next"):
+            break
+        page += 1
+    return acts
+
+
+RADAR_SKIP_HOSTS = re.compile(r"postgres-contrib\.org|sympla\.com|townscript\.com|luma\.com|lu\.ma|eventbrite|"
+                              r"sessionize\.com|docs\.google|meetup\.com|github\.com/[^/]+/?$")
+
+
+def radar_pages(http, roster, links, conf, past, newest):
+    """Look for people.json names on an event's own programme pages."""
+    pages, seen = [], set()
+    year = conf["start"][:4]
+    for link in [l for l in links if not RADAR_SKIP_HOSTS.search(l)][:3]:
+        host = urlparse(link).netloc.removeprefix("www.")
+        latest = newest.get(host, conf["start"]) <= conf["start"]
+        if not latest and year not in link:
+            continue      # an older edition on a shared site: only its own year's pages
+        root = f"{urlparse(link).scheme}://{urlparse(link).netloc}/"
+        for url in dict.fromkeys([link, root] if latest else [link]):
+            if url in seen:
+                continue
+            seen.add(url)
+            body = http.get(url, max_age_days=30 if past else 0.9, probe=True)
+            if not body:
+                continue
+            pages.append((url, body))
+            for href in re.findall(r'href="([^"#]+)"', body)[:400]:
+                full = urljoin(url, html.unescape(href))
+                path = urlparse(full).path
+                if urlparse(full).netloc == urlparse(url).netloc and PROGRAMME_WORDS.search(path) \
+                        and not re.search(r"old|archive|past|20(?!%s)\d\d" % year[2:], path, re.I) \
+                        and full not in seen and len(seen) < 12:
+                    seen.add(full)
+                    sub = http.get(full, max_age_days=30 if past else 0.9, probe=True)
+                    if sub:
+                        pages.append((full, sub))
+    acts, matched = [], set()
+    for url, body in pages:
+        text = " " + norm(text_of(strip_comments(re.sub(r"<(script|style)\b.*?</\1>", " ", body, flags=re.S | re.I)))) + " "
+        for p in roster.people:
+            for n in [p["name"], *p.get("aliases", [])]:
+                if p["name"] not in matched and f" {norm(n)} " in text:
+                    hit = roster.match(p["name"], None, conf["start"], f"{conf['id']} programme")
+                    if hit:
+                        matched.add(p["name"])
+                        acts.append({"kind": "talk", "person": hit[0], "evidence": "name on event website",
+                                     "company_listed": None, "event": conf["id"], "date": conf["start"],
+                                     "title": None, "url": url, "listed_only": True})
+        # Possible Percona people we don't know yet: kept for review, not published.
+        for m in re.finditer(r"([A-Z][\w'-]+(?: [A-Z][\w'-]+){1,2})[^A-Za-z]{1,40}Percona\b", text_of(body)):
+            if not roster.known(m.group(1)) and norm(m.group(1)) not in roster.excluded:
+                roster.review.append({"person": m.group(1), "where": url, "date": conf["start"], "reason": "near 'Percona' on event website"})
+    return acts
 
 
 # ── Blogs ───────────────────────────────────────────────────────────────────
@@ -762,7 +929,7 @@ def github_stats(http: Http, repo: str | None) -> dict:
 
 def build(http: Http) -> dict:
     roster = Roster(ROOT / "community" / "people.json")
-    out = {"events": {}, "activities": [], "roles": [], "projects": [], "posts": [], "recognition": [], "planet": None, "hackorum": None, "coverage": []}
+    out = {"events": {}, "activities": [], "roles": [], "projects": [], "posts": [], "recognition": [], "planet": None, "hackorum": None, "coverage": [], "radar": []}
     steps = [
         *[(f"pgeu-system {i['base']}", lambda i=i: collect_pgeu(http, roster, i, out)) for i in PGEU_INSTANCES],
         ("Swiss PGDay", lambda: collect_swiss(http, roster, out)),
@@ -772,6 +939,7 @@ def build(http: Http) -> dict:
         ("Hackorum", lambda: collect_hackorum(http, out)),
         ("postgresql.org recognition", lambda: collect_recognition(http, roster, out)),
         ("coverage", lambda: collect_coverage(http, out, dict(out["events"]))),
+        ("radar", lambda: collect_radar(http, roster, out)),
     ]
     errors = []
     for label, step in steps:

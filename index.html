@@ -941,13 +941,15 @@ function renderCommunity(app, toolbar) {
   grid.append(renderEvents(acts));
 
   // Conferences postgresql.org lists that no collector reads yet.
-  const gaps = (COMM.coverage || []).filter(r => !r.covered && (S.year === "all" || r.date.startsWith(S.year)));
+  const gaps = (COMM.radar || COMM.coverage || []).filter(r => !r.covered && (S.year === "all" || r.date.startsWith(S.year)));
+  const how = { indico: "read via Indico", eventyay: "read via eventyay", scanned: "website searched for our names", "no website": "no website to check" };
   if (gaps.length) grid.append(el("section", { class: "card span-12" },
-    el("h2", { text: "Not tracked automatically yet" }),
-    el("p", { class: "sub", text: `${gaps.length} conferences listed on postgresql.org whose speakers and organisers this page cannot read yet. If Percona was there, add it to community/manual.json or tell the maintainers.` }),
+    el("h2", { text: "Conferences checked less thoroughly" }),
+    el("p", { class: "sub", text: `${gaps.length} conferences without a full schedule reader. They are checked by searching their websites for our people's names (or through Indico / eventyay), which can miss talks. If Percona was there and it's missing, add it to community/manual.json.` }),
     el("details", { class: "table-view" }, el("summary", { text: "Show the list" }),
       el("ul", { class: "list-plain", style: "margin-top:10px" }, gaps.map(r =>
-        el("li", {}, el("span", { class: "date", text: `${shortDate(r.date)} · ` }), ext(r.url, r.name), r.recognised ? " · recognised community event" : ""))))));
+        el("li", {}, el("span", { class: "date", text: `${shortDate(r.date)} · ` }), safeUrl(r.url) ? ext(r.url, r.name) : (safeUrl((r.links || [])[0]) ? ext(r.links[0], r.name) : r.name),
+          ` · ${how[r.status] || "not checked"}${r.percona ? ` · ${r.percona} Percona entr${r.percona === 1 ? "y" : "ies"}` : ""}`))))));
 }
 
 function renderEvents(acts) {
@@ -995,7 +997,7 @@ function eventItem([id, rows]) {
       el("ul", { class: "ev-people" }, rows.map(a => {
         const k = KIND[a.kind] || { label: a.kind, color: "var(--other)" };
         const detail = a.kind === "talk"
-          ? [" ", safeUrl(a.url) ? ext(a.url, a.title) : (a.title || ""),
+          ? [" ", safeUrl(a.url) ? ext(a.url, a.title || "Listed on the event website") : (a.title || ""),
              a.co_speakers && a.co_speakers.length ? el("span", { text: ` (with ${listNames(a.co_speakers)})` }) : null,
              el("span", { class: "mini-links" }, ext(a.slides, "Slides"), ext(a.video, "Video"))]
           : [a.title ? ` · ${a.title}` : (a.section && !/^(organisers?|organising committee)$/i.test(a.section) ? ` · ${a.section}` : ""), a.note ? ` (${a.note})` : "",

@@ -1,0 +1,34 @@
+{
+  "_comment": "Conference sites to check for Percona speakers that postgresql.org does not list or does not link. 'date' is the first day (YYYY-MM-DD); 'links' are the event's website pages.",
+  "events": [
+    {
+      "name": "PGConf.Brazil 2026",
+      "date": "2026-09-02",
+      "links": [
+        "https://pgconf.com.br/2026/",
+        "https://pgconf.com.br/"
+      ]
+    },
+    {
+      "name": "PGConf.Brazil 2025",
+      "date": "2025-09-03",
+      "links": [
+        "https://pgconf.com.br/2025/"
+      ]
+    },
+    {
+      "name": "PGDay France 2026",
+      "date": "2026-06-03",
+      "links": [
+        "https://pgday.fr/"
+      ]
+    },
+    {
+      "name": "PGDay Austria 2025",
+      "date": "2025-09-04",
+      "links": [
+        "https://pgday.at/"
+      ]
+    }
+  ]
+}

@@ -79,6 +79,13 @@
       "start": "2026-10-19",
       "end": "2026-10-19",
       "url": "https://www.meetup.com/barcelona-postgresql-meetup-group/events/316733931/"
+    },
+    {
+      "id": "meetup-berlin-2026-03",
+      "name": "PostgreSQL Berlin March 2026 Meetup",
+      "start": "2026-03-05",
+      "end": "2026-03-05",
+      "url": "https://www.meetup.com/postgresql-meetup-berlin/events/313412510/"
     }
   ],
   "activities": [
@@ -205,6 +212,14 @@
       "date": "2026-10-19",
       "title": "Managing the Postgres Developer Firehose with hackorum.dev",
       "url": "https://www.meetup.com/barcelona-postgresql-meetup-group/events/316733931/"
+    },
+    {
+      "kind": "talk",
+      "person": "Kai Wagner",
+      "event": "meetup-berlin-2026-03",
+      "date": "2026-03-05",
+      "title": "Modernizing Postgres Communication with Hackorum",
+      "url": "https://www.meetup.com/postgresql-meetup-berlin/events/313412510/"
     }
   ],
   "projects": [

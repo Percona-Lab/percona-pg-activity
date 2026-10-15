@@ -48,7 +48,8 @@ manually (*Actions → Update PG activity dashboard → Run workflow*). It:
 | PgUS (postgresql.us), PGDay UK (pgday.uk), PGConf.dev (pgevents.ca) | same, via the same conference system |
 | Swiss PGDay (pgday.ch) | talks and committees from its own site |
 | PGConf India (pgconf.in) | talks with slides/video, core committee |
-| postgresql.org event list | coverage check: conferences no collector reads are listed on the page under "Not tracked automatically yet" |
+| postgresql.org event list | coverage check: conferences no dedicated collector reads |
+| Radar (every conference from the coverage check, plus `community/watch.json`) | Indico (CERN PGDay) and eventyay (FOSSASIA PGDay) via their APIs; any other site by looking for people.json names on its schedule / programme / speaker pages, shown as "Listed on the event website". Names found next to "Percona" that aren't in people.json go to `review` |
 | percona.com/blog, percona.community | PostgreSQL posts (RSS) |
 | Planet PostgreSQL | Percona feeds and recent post count |
 | Hackorum (`/team/percona`) | mailing-list messages, patches, per year |
