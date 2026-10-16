@@ -524,8 +524,30 @@ class IdentityIndex:
         return {k for kind, k in self._parent if kind == "email" and self._find((kind, k)) == root}
 
 
-def company_for(idx: "IdentityIndex", root) -> str | None:
+# People who changed employer: (first day at the new company, company), in any
+# order. Credits dated before the earliest entry fall back to
+# COMPANY_NAME_OVERRIDES / the email domain, so earlier work stays with the
+# previous employer.
+COMPANY_NAME_HISTORY: dict[str, list[tuple[str, str]]] = {
+    "robert haas": [("2026-09-01", "Databricks")],   # EDB from 2010-04 until 2026-08
+}
+
+
+def history_company(name_key: str, when: str | None) -> str | None:
+    """Employer from COMPANY_NAME_HISTORY on date *when* (YYYY-MM-DD, default today)."""
+    day = when or date.today().isoformat()
+    for start, company in sorted(COMPANY_NAME_HISTORY.get(name_key, ()), reverse=True):
+        if day >= start:
+            return company
+    return None
+
+
+def company_for(idx: "IdentityIndex", root, when: str | None = None) -> str | None:
+    """Company of an identity on date *when* (default: today)."""
     name_key = _norm_name(idx.display_name(root))
+    dated = history_company(name_key, when)
+    if dated:
+        return dated
     if name_key in COMPANY_NAME_OVERRIDES:
         return COMPANY_NAME_OVERRIDES[name_key]
     for email in idx.emails(root):
@@ -554,8 +576,8 @@ def compute_company_stats(mentions, idx: "IdentityIndex"):
     unattributed: dict = defaultdict(lambda: {"authored": 0, "reviewed": 0})
 
     for root, subj_dates in first_seen.items():
-        company = company_for(idx, root)
-        for bucket, subject in subj_dates:
+        for (bucket, subject), cdate in subj_dates.items():
+            company = company_for(idx, root, cdate)
             if company:
                 (authored if bucket == "authored" else reviewed)[company] += 1
             else:

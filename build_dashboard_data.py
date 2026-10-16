@@ -201,16 +201,18 @@ class Attribution:
         self.known_names = {("name", pa._norm_name(n)) for _, _, _, n, _ in self.mentions if n}
         self.known_emails = {("email", e) for _, _, _, _, e in self.mentions if e}
 
-    def resolve(self, name: str, email: str | None) -> tuple[str, str | None]:
+    def resolve(self, name: str, email: str | None, when: str | None = None) -> tuple[str, str | None]:
+        """Display name and company on date *when* (default: today)."""
         nkey = ("name", pa._norm_name(name)) if name else None
         ekey = ("email", email) if email else None
         if nkey in self.known_names or (not nkey and ekey in self.known_emails):
             root = self.idx.root(name, email)
-            return self.idx.display_name(root), pa.company_for(self.idx, root)
+            return self.idx.display_name(root), pa.company_for(self.idx, root, when)
         if ekey in self.known_emails:
             root = self.idx.root(None, email)
-            return name or self.idx.display_name(root), pa.company_for(self.idx, root)
-        company = pa.COMPANY_NAME_OVERRIDES.get(pa._norm_name(name)) if name else None
+            return name or self.idx.display_name(root), pa.company_for(self.idx, root, when)
+        company = (pa.history_company(pa._norm_name(name), when)
+                   or pa.COMPANY_NAME_OVERRIDES.get(pa._norm_name(name))) if name else None
         if not company and email:
             company = pa.COMPANY_DOMAINS.get(email.split("@")[-1])
         return name or email, company
@@ -244,8 +246,8 @@ def build(after: str, before: str | None) -> dict:
             first_seen[root][(bucket, subject)] = cdate
     company_monthly = {"authored": defaultdict(Counter), "reviewed": defaultdict(Counter)}
     for root, keys in first_seen.items():
-        company = pa.company_for(attr.idx, root) or "Unattributed"
         for (bucket, _), cdate in keys.items():
+            company = pa.company_for(attr.idx, root, cdate) or "Unattributed"
             company_monthly[bucket][company][cdate[:7]] += 1
     totals = Counter()
     for bucket in company_monthly.values():
@@ -285,7 +287,7 @@ def build(after: str, before: str | None) -> dict:
                 continue
             role, people = t
             for name, email in people:
-                display, company = attr.resolve(name, email)
+                display, company = attr.resolve(name, email, cdate)
                 g["credits"][display].add(role)
                 g["people"][display] = company
     for g in groups.values():
