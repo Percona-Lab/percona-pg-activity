@@ -175,7 +175,7 @@ COMPANY_NAME_OVERRIDES: dict[str, str] = {
     "imran zaheer": "Cybertec",
     "nikolay samokhvalov": "Postgres.ai",
     "mario gonzalez": "EDB",
-    "fabrizio de royes mello": "Tiger Data (Timescale)",
+    "fabrizio de royes mello": "PlanetScale",
     "karina litskevich": "Postgres Professional",
     "nikhil sontakke": "PlanetScale",
     "niall newman": "Turaco Labs",
