@@ -26,7 +26,6 @@ import percona_activity as pa  # noqa: E402
 COMPANY = pa.HIGHLIGHT_COMPANY
 TOP_COMPANIES = 25
 
-HEADER_RE = re.compile(r"^COMMIT ([0-9a-f]{40}) (\d{4}-\d{2}-\d{2}) (.+)$")
 DISCUSSION_RE = re.compile(r"^Discussion:\s*(https?://\S+)", re.IGNORECASE)
 TRAILER_LINE_RE = re.compile(r"^[A-Z][A-Za-z-]+(-by|-through|-version)?:\s")
 
@@ -218,18 +217,6 @@ class Attribution:
         return name or email, company
 
 
-def parse_commits(raw: str):
-    for block in re.split(r"\nENDCOMMIT\n", raw):
-        lines = block.strip().splitlines()
-        if not lines:
-            continue
-        m = HEADER_RE.match(lines[0])
-        if not m:
-            continue
-        # lines[1] repeats the subject (%B), so the body starts after it.
-        yield m.group(1), m.group(2), m.group(3).strip(), lines[2:]
-
-
 def build(after: str, before: str | None) -> dict:
     raw = pa.fetch_log(after, before)
     attr = Attribution(raw)
@@ -268,28 +255,45 @@ def build(after: str, before: str | None) -> dict:
     # ── All commits grouped by subject (backports collapse into one change) ──
     groups: dict[str, dict] = {}
     total_by_month = Counter()
-    for h, cdate, subject, body_lines in parse_commits(raw):
-        g = groups.get(subject)
+    for c in pa.iter_commits(raw):
+        g = groups.get(c.subject)
         if g is None:
-            g = groups[subject] = {
-                "subject": subject, "date": cdate, "hashes": [], "body": body_lines,
+            g = groups[c.subject] = {
+                "subject": c.subject, "date": c.date, "hashes": [], "body": c.body,
                 "credits": defaultdict(set), "people": {}, "discussion": [],
+                "committers": {}, "has_author": False, "has_discussion": False,
             }
-        g["hashes"].append(h)
-        if cdate < g["date"]:
-            g["date"] = cdate
-        for line in body_lines:
+        g["hashes"].append(c.hash)
+        if c.date < g["date"]:
+            g["date"] = c.date
+        if any(c.committer):
+            cur = g["committers"].get(c.committer)
+            if cur is None or c.date < cur:
+                g["committers"][c.committer] = c.date
+        for line in c.body:
             dm = DISCUSSION_RE.match(line.strip())
             if dm and dm.group(1) not in g["discussion"]:
                 g["discussion"].append(dm.group(1))
+            if pa.DISCUSSION_LINK_RE.search(line):
+                g["has_discussion"] = True
             t = pa.parse_trailer(line)
             if not t:
                 continue
             role, people = t
+            if role == "authored":
+                g["has_author"] = True
             for name, email in people:
-                display, company = attr.resolve(name, email, cdate)
+                display, company = attr.resolve(name, email, c.date)
                 g["credits"][display].add(role)
                 g["people"][display] = company
+    # Committers authoring their own work -- same rule as collect_all_mentions.
+    for g in groups.values():
+        if g["has_author"] or not g["has_discussion"]:
+            continue
+        for (name, email), cdate in g["committers"].items():
+            display, company = attr.resolve(name, email, cdate)
+            g["credits"][display].add("authored")
+            g["people"][display] = company
     for g in groups.values():
         total_by_month[g["date"][:7]] += 1
 

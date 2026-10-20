@@ -22,6 +22,7 @@ import unicodedata
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import NamedTuple
 from xml.sax.saxutils import escape
 
 # ── Manually tracked contributors ────────────────────────────────────────────
@@ -233,11 +234,42 @@ NAME_ALIASES: dict[str, str] = {
     "gregburd": "greg burd",
 }
 
+# Log format every parser here expects: header line, then the full message.
+# Committer name and email are tab-separated so the subject can stay last and
+# keep its spaces.
+LOG_FORMAT = "COMMIT %H %ad %cN%x09%cE%x09%s%n%B%nENDCOMMIT"
+LOG_HEADER_RE = re.compile(r"^COMMIT ([0-9a-f]{40}) (\d{4}-\d{2}-\d{2}) ([^\t]*)\t([^\t]*)\t(.+)$")
+# Also catches a Discussion: link glued onto another trailer line.
+DISCUSSION_LINK_RE = re.compile(r"\bDiscussion\s*:\s*<?https?://", re.I)
+
+
+class Commit(NamedTuple):
+    hash: str
+    date: str
+    committer: tuple[str, str]   # name, lowercased email
+    subject: str
+    body: list[str]
+
+
+def iter_commits(raw: str):
+    """Split a fetch_log()-style log into commits."""
+    for block in re.split(r"\nENDCOMMIT\n", raw):
+        lines = block.strip().splitlines()
+        if not lines:
+            continue
+        m = LOG_HEADER_RE.match(lines[0])
+        if not m:
+            continue
+        # lines[1] repeats the subject (%B), so the body starts after it.
+        yield Commit(m.group(1), m.group(2), (m.group(3), m.group(4).lower()),
+                     m.group(5).strip(), lines[2:])
+
+
 def fetch_log(after: str, before: str | None) -> str:
     cmd = ["git", "log", "--all",
            f"--after={after}",
            "--date=short",
-           "--format=COMMIT %H %ad %s%n%B%nENDCOMMIT"]
+           f"--format={LOG_FORMAT}"]
     if before:
         cmd.append(f"--before={before}")
     return subprocess.check_output(cmd, text=True)
@@ -286,7 +318,6 @@ def build_identities(raw: str) -> dict[str, list[str]]:
 
 
 def parse_log(raw: str, identities: dict[str, list[str]]) -> tuple:
-    header_re  = re.compile(r"^COMMIT ([0-9a-f]{40}) (\d{4}-\d{2}-\d{2}) (.+)$")
     trailer_re = re.compile(
         r"^(Author|Co-authored-by|Reviewed-by):\s*(.*?)\s*<(.+?)>",
         re.IGNORECASE,
@@ -297,17 +328,11 @@ def parse_log(raw: str, identities: dict[str, list[str]]) -> tuple:
     authored_dates = {p: {} for p in identities}
     reviewed_dates = {p: {} for p in identities}
 
-    for block in re.split(r"\nENDCOMMIT\n", raw):
-        lines = block.strip().splitlines()
-        if not lines:
-            continue
-        m = header_re.match(lines[0])
-        if not m:
-            continue
-        commit_date = datetime.strptime(m.group(2), "%Y-%m-%d").date()
-        subject = m.group(3).strip()
+    for c in iter_commits(raw):
+        commit_date = datetime.strptime(c.date, "%Y-%m-%d").date()
+        subject = c.subject
 
-        for line in lines[1:]:
+        for line in c.body:
             tm = trailer_re.match(line)
             if not tm:
                 continue
@@ -450,26 +475,39 @@ def collect_all_mentions(raw: str) -> list[tuple[str, str, str, str, str | None]
     roughly a third of all Reviewed-by trailers in this repo have no email at
     all, and a plain email-only regex silently drops them.
 
+    Committers get an author credit for their own work: nobody writes an
+    Author: trailer for themselves, so a change with no Author: trailer but a
+    Discussion: link is the committer's own patch. With neither it's a typo
+    fix, a catversion bump or a buildfarm cleanup, and nobody is credited.
+    The rule looks at the whole backport group (same subject), not a single
+    commit, so a backport with a trimmed message can't invent a credit.
+
     Returns (role, commit_date, subject, name, email_or_None) tuples.
     """
-    header_re = re.compile(r"^COMMIT ([0-9a-f]{40}) (\d{4}-\d{2}-\d{2}) (.+)$")
-
     mentions = []
-    for block in re.split(r"\nENDCOMMIT\n", raw):
-        lines = block.strip().splitlines()
-        if not lines:
-            continue
-        m = header_re.match(lines[0])
-        if not m:
-            continue
-        commit_date = m.group(2)
-        subject = m.group(3).strip()
-        for line in lines[1:]:
+    groups: dict[str, dict] = {}
+    for c in iter_commits(raw):
+        g = groups.setdefault(c.subject, {"committers": {}, "author": False, "discussion": False})
+        if any(c.committer):
+            cur = g["committers"].get(c.committer)
+            if cur is None or c.date < cur:
+                g["committers"][c.committer] = c.date
+        for line in c.body:
+            if DISCUSSION_LINK_RE.search(line):
+                g["discussion"] = True
             t = parse_trailer(line)
             if not t or t[0] not in ("authored", "reviewed"):
                 continue
+            if t[0] == "authored":
+                g["author"] = True
             for name, email in t[1]:
-                mentions.append((t[0], commit_date, subject, name, email))
+                mentions.append((t[0], c.date, c.subject, name, email))
+
+    for subject, g in groups.items():
+        if g["author"] or not g["discussion"]:
+            continue
+        for (name, email), cdate in g["committers"].items():
+            mentions.append(("authored", cdate, subject, name, email))
     return mentions
 
 
@@ -550,7 +588,7 @@ def company_for(idx: "IdentityIndex", root, when: str | None = None) -> str | No
         return dated
     if name_key in COMPANY_NAME_OVERRIDES:
         return COMPANY_NAME_OVERRIDES[name_key]
-    for email in idx.emails(root):
+    for email in sorted(idx.emails(root)):
         domain = email.split("@")[-1]
         if domain in COMPANY_DOMAINS:
             return COMPANY_DOMAINS[domain]

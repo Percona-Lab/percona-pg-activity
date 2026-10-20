@@ -11,10 +11,13 @@ Changes are grouped by subject across all branches, so a backpatched fix
 counts once, the same as on the code tab. The "cycle" section covers the
 newest stable branch since it split from the previous one (the PostgreSQL 19
 cycle while REL_19_STABLE is the newest), one credit per commit; the clone
-must reach back to that split point, otherwise the section is left out. Committers get an author credit
-when a trailer names them, or for a change of their own with no Author:
-trailer but a Discussion: link; their own changes with neither (typo fixes,
-catversion bumps, buildfarm cleanups) are counted as "skip" instead.
+must reach back to that split point, otherwise the section is left out.
+
+Committers get an author credit when a trailer names them, or for a change of
+their own with no Author: trailer but a Discussion: link -- the same rule as
+percona_activity.collect_all_mentions, so the two tabs agree. Their own
+changes with neither (typo fixes, catversion bumps, buildfarm cleanups) are
+counted as "skip" instead.
 """
 
 import argparse
@@ -32,30 +35,20 @@ import build_dashboard_data as bd  # noqa: E402
 
 # Per-month counter slots, in output order.
 SLOTS = ["a", "r", "rep", "touched", "cm", "self", "skip"]
-# Also catches a Discussion: link glued onto another trailer line.
-DISCUSSION_RE = re.compile(r"\bDiscussion\s*:\s*<?https?://", re.I)
 ROLE_SLOT = {"authored": "a", "reviewed": "r", "reported": "rep", "diagnosed": "rep"}
 
 
-def committers(args: list[str]) -> dict[str, tuple[str, str]]:
-    out = {}
-    for line in bd.git("log", *args, "--format=%H%x09%cN%x09%cE").splitlines():
-        h, name, email = line.split("\t")
-        out[h] = (name, email.lower())
-    return out
-
-
-def rank(raw: str, cby: dict, by_subject: bool) -> dict:
+def rank(raw: str, by_subject: bool) -> dict:
     attr = bd.Attribution(raw)
     groups: dict[str, dict] = {}
-    for h, cdate, subject, body_lines in bd.parse_commits(raw):
-        g = groups.setdefault(subject if by_subject else h, {
-            "date": cdate, "credits": defaultdict(set), "committers": set(), "author": False, "discussion": False})
-        g["date"] = min(g["date"], cdate)
-        if h in cby:
-            g["committers"].add(attr.resolve(*cby[h])[0])
-        for line in body_lines:
-            if DISCUSSION_RE.search(line):
+    for c in pa.iter_commits(raw):
+        g = groups.setdefault(c.subject if by_subject else c.hash, {
+            "date": c.date, "credits": defaultdict(set), "committers": set(), "author": False, "discussion": False})
+        g["date"] = min(g["date"], c.date)
+        if any(c.committer):
+            g["committers"].add(attr.resolve(*c.committer)[0])
+        for line in c.body:
+            if pa.DISCUSSION_LINK_RE.search(line):
                 g["discussion"] = True
             t = pa.parse_trailer(line)
             if not t:
@@ -126,22 +119,20 @@ def cycle() -> dict | None:
     except subprocess.CalledProcessError:
         print(f"no merge-base of {prev} and {newest} in this clone, skipping the cycle", file=sys.stderr)
         return None
-    rng = ["--no-merges", f"{base}..{newest}"]
-    raw = bd.git("log", *rng, "--date=short", "--format=COMMIT %H %ad %s%n%B%nENDCOMMIT")
+    raw = bd.git("log", "--no-merges", f"{base}..{newest}", "--date=short", f"--format={pa.LOG_FORMAT}")
     head = bd.git("log", "-1", "--format=%H%x09%cs", newest).strip().split("\t")
     return {"version": version, "branch": newest, "base": base[:11], "head": head[0][:11],
             "base_date": bd.git("log", "-1", "--format=%cs", base).strip(), "head_date": head[1],
-            **rank(raw, committers(rng), by_subject=False)}
+            **rank(raw, by_subject=False)}
 
 
 def build(after: str, before: str | None) -> dict:
-    args = ["--all", f"--after={after}"] + ([f"--before={before}"] if before else [])
     return {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "company": pa.HIGHLIGHT_COMPANY,
         "range": {"after": after, "before": before},
         "slots": SLOTS,
-        **rank(pa.fetch_log(after, before), committers(args), by_subject=True),
+        **rank(pa.fetch_log(after, before), by_subject=True),
         "cycle": cycle(),
     }
 
