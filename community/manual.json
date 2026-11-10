@@ -33,6 +33,22 @@
       "role": "Contributor",
       "group": "PostgreSQL Europe conference system (pgeu-system)",
       "url": "https://git.postgresql.org/gitweb/?p=pgeu-system.git"
+    },
+    {
+      "person": "Sagar Jadhav",
+      "role": "Co-organiser",
+      "group": "Pune PostgreSQL User Group (PgPune)",
+      "since": "2024",
+      "note": "Six events since December 2024, including the full-day Postgres Pune Event #6 in October 2026; Pune city chapter of PGConf India",
+      "url": "https://pgpune.in/"
+    },
+    {
+      "person": "Ashish Kumar Mehra",
+      "role": "Co-organiser",
+      "group": "Pune PostgreSQL User Group (PgPune)",
+      "since": "2024",
+      "note": "Six events since December 2024, including the full-day Postgres Pune Event #6 in October 2026; Pune city chapter of PGConf India",
+      "url": "https://pgpune.in/"
     }
   ],
   "events": [
@@ -86,6 +102,13 @@
       "start": "2026-03-05",
       "end": "2026-03-05",
       "url": "https://www.meetup.com/postgresql-meetup-berlin/events/313412510/"
+    },
+    {
+      "id": "pgpune2026-10",
+      "name": "Postgres Pune Event #6",
+      "start": "2026-10-09",
+      "end": "2026-10-09",
+      "url": "https://pgpune.in/"
     }
   ],
   "activities": [
@@ -220,6 +243,22 @@
       "date": "2026-03-05",
       "title": "Modernizing Postgres Communication with Hackorum",
       "url": "https://www.meetup.com/postgresql-meetup-berlin/events/313412510/"
+    },
+    {
+      "kind": "organiser",
+      "person": "Sagar Jadhav",
+      "event": "pgpune2026-10",
+      "date": "2026-10-09",
+      "title": "Co-organiser",
+      "url": "https://pgpune.in/about/"
+    },
+    {
+      "kind": "organiser",
+      "person": "Ashish Kumar Mehra",
+      "event": "pgpune2026-10",
+      "date": "2026-10-09",
+      "title": "Co-organiser",
+      "url": "https://pgpune.in/about/"
     }
   ],
   "projects": [
