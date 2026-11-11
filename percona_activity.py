@@ -130,7 +130,7 @@ COMPANY_NAME_OVERRIDES: dict[str, str] = {
     "amit langote": "Microsoft",
     "tristan partin": "Amazon",
     "shlok kyal": "Fujitsu",
-    "dilip kumar": "EDB",
+    "dilip kumar": "Google",
     "noah misch": "DCX - Multi Axis Games",
     "peter eisentraut": "EDB",
     "john naylor": "Amazon",
