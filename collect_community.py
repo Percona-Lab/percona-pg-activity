@@ -841,14 +841,53 @@ def collect_blogs(http: Http, roster: Roster, out: dict) -> None:
             "author": roster_name(roster, it.findtext("author") or it.findtext("dc:creator", namespaces=NS) or ""),
             "on_planet": None, "excerpt": excerpt(it.findtext("description")),
         })
+    # Personal blogs listed in people.json ("blog"): only posts written while
+    # the person was at Percona count.
+    n2 = len(out["posts"])
+    for person in roster.people:
+        if not person.get("blog"):
+            continue
+        for it in feed_entries(http.get(person["blog"])):
+            if not it["link"] or it["link"] in seen or not it["date"] or it["date"] < cutoff:
+                continue
+            if not (person.get("since", "0000") <= it["date"] <= person.get("until", "9999")):
+                continue
+            seen.add(it["link"])
+            out["posts"].append({
+                "source": "personal blog", "site": urlparse(person["blog"]).netloc, "title": it["title"], "url": it["link"],
+                "date": it["date"], "author": person["name"], "on_planet": None, "excerpt": excerpt(it["summary"]),
+            })
     # Old articles get refreshed and re-dated; the feed only shows the new date.
     # A post dated outside its author's time at Percona is such a republication.
     for post in out["posts"]:
         p = roster.by_key.get(norm(post["author"]))
         if p and not (p.get("since", "0000") <= post["date"] <= p.get("until", "9999")):
             post["republished"] = True
-    print(f"  blogs: percona.com={n1} percona.community={len(out['posts']) - n1}, "
+    print(f"  blogs: percona.com={n1} percona.community={n2 - n1} personal={len(out['posts']) - n2}, "
           f"republished={sum(1 for x in out['posts'] if x.get('republished'))}")
+
+
+ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+def feed_entries(xml_text: str | None) -> list[dict]:
+    """Items of an RSS or Atom feed as {title, link, date, summary}."""
+    if not xml_text:
+        return []
+    try:
+        root = ET.fromstring(xml_text.encode())
+    except ET.ParseError:
+        return []
+    entries = []
+    for it in root.iter("item"):
+        entries.append({"title": text_of(it.findtext("title")), "link": it.findtext("link"),
+                        "date": parse_date(it.findtext("pubDate")), "summary": it.findtext("description")})
+    for it in root.iter(ATOM + "entry"):
+        link = next((l.get("href") for l in it.findall(ATOM + "link") if l.get("rel", "alternate") == "alternate"), None)
+        day = re.search(r"\d{4}-\d{2}-\d{2}", it.findtext(ATOM + "published") or it.findtext(ATOM + "updated") or "")
+        entries.append({"title": text_of(it.findtext(ATOM + "title")), "link": link, "date": day.group(0) if day else None,
+                        "summary": it.findtext(ATOM + "summary") or it.findtext(ATOM + "content")})
+    return entries
 
 
 def roster_name(roster: Roster, author: str) -> str:
@@ -862,9 +901,20 @@ def roster_name(roster: Roster, author: str) -> str:
 def collect_planet(http: Http, roster: Roster, out: dict) -> None:
     feeds = http.get(PLANET + "feeds.html") or ""
     names = set()
+    # Personal blogs of people in people.json count too (only their posts from
+    # their time at Percona are listed, see collect_blogs).
+    personal = {urlparse(p["blog"]).netloc.lower(): p["name"] for p in roster.people if p.get("blog")}
+    planet_hosts = set()
     for feed, site, name in re.findall(r'<li><a href="([^"]+)"><img[^>]*></a>\s*<a href="([^"]+)">([^<]+)</a></li>', feeds):
+        host = urlparse(feed).netloc.lower()
         if "percona" in (feed + site).lower():
             names.add(roster_name(roster, name))
+        elif host in personal:
+            names.add(personal[host])
+            planet_hosts.add(host)
+    for post in out["posts"]:
+        if post.get("site") in planet_hosts:
+            post["on_planet"] = True
     home = http.get(PLANET) or ""
     m = re.search(r'<a href="[^"]*percona[^"]*">Percona</a>\s*-\s*(\d+)', home, re.I)
     out["planet"] = {"feeds": sorted(names), "posts_last_two_months": int(m.group(1)) if m else None, "url": PLANET}

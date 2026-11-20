@@ -1028,10 +1028,11 @@ function renderBlog(app, toolbar) {
   const authors = count(posts, p => p.author);
   const bySource = count(posts, p => p.source);
   const scope = S.year === "all" ? `Since ${COMM.start_year}` : S.year;
-  app.append(el("section", { class: "kpis", "aria-label": "Key numbers" },
-    kpi("PostgreSQL blog posts", fmt(posts.length), `${scope} · percona.com and percona.community`, true),
+  app.append(el("section", { class: "kpis", style: `--n: ${COMM.planet ? 5 : 4}`, "aria-label": "Key numbers" },
+    kpi("PostgreSQL blog posts", fmt(posts.length), `${scope} · percona.com, percona.community and personal blogs`, true),
     kpi("On percona.com", fmt(bySource["percona.com"] || 0), "Percona blog, PostgreSQL category"),
     kpi("On percona.community", fmt(bySource["percona.community"] || 0), "Community blog, PostgreSQL posts"),
+    kpi("On personal blogs", fmt(bySource["personal blog"] || 0), "Percona people's own PostgreSQL blogs"),
     kpi("Authors", fmt(Object.keys(authors).length), "People who wrote at least one post"),
     COMM.planet ? kpi("On Planet PostgreSQL", fmt(COMM.planet.feeds.length), "Percona author feeds syndicated") : null));
 
@@ -1042,11 +1043,12 @@ function renderBlog(app, toolbar) {
   const series = [
     { label: "percona.com", color: "var(--accent)", values: count(posts.filter(p => p.source === "percona.com"), byPeriod) },
     { label: "percona.community", color: "var(--series-2)", values: count(posts.filter(p => p.source === "percona.community"), byPeriod) },
+    { label: "personal blog", color: "var(--series-4)", values: count(posts.filter(p => p.source === "personal blog"), byPeriod) },
   ];
   const kl = S.year === "all" ? k => k : monthLabel, ks = S.year === "all" ? k => k : k => MONTHS[+k.slice(5) - 1];
   grid.append(el("section", { class: "card span-7" },
     el("div", { class: "card-head" },
-      el("div", {}, el("h2", { text: S.year === "all" ? "Posts per year" : `Posts in ${S.year}` }), el("p", { class: "sub", text: "PostgreSQL posts on Percona's blogs" })),
+      el("div", {}, el("h2", { text: S.year === "all" ? "Posts per year" : `Posts in ${S.year}` }), el("p", { class: "sub", text: "PostgreSQL posts by Percona people" })),
       legend(series.map(s => [s.label, s.color]))),
     columnChart(keys, series, { label: kl, short: ks, aria: "Blog posts over time" }),
     tableView(["Period", ...series.map(s => s.label)], keys.map(k => [kl(k), ...series.map(s => s.values[k] || 0)]))));
@@ -1065,7 +1067,7 @@ function renderBlog(app, toolbar) {
       el("div", { class: "date", text: shortDate(p.date) }),
       el("div", {},
         el("h3", {}, ext(p.url, p.title)),
-        el("div", { class: "pills" }, el("span", { class: "pill cat", text: p.source }), p.on_planet ? el("span", { class: "pill ver", text: "Planet PostgreSQL" }) : null,
+        el("div", { class: "pills" }, el("span", { class: "pill cat", text: p.site || p.source }), p.on_planet ? el("span", { class: "pill ver", text: "Planet PostgreSQL" }) : null,
           p.republished ? el("span", { class: "pill ver", text: "Republished earlier article" }) : null),
         p.excerpt ? el("div", { class: "summary", text: p.excerpt }) : null,
         el("div", { class: "credits" }, el("b", { text: p.author || "Percona" })))),
@@ -1078,7 +1080,7 @@ function renderBlog(app, toolbar) {
         ["date", "title", "author", "source", "url"], p => [p.date, p.title, p.author, p.source, p.url], "percona-postgresql-posts")),
     el("div", { class: "filters" },
       searchBox(S.q, "Search posts, e.g. pg_tde, Patroni, upgrade…", v => { S.q = v; draw(); }),
-      select(S.source, listed.map(p => p.source), "Both blogs", "Blog", v => set("source", v)),
+      select(S.source, listed.map(p => p.source), "All blogs", "Blog", v => set("source", v)),
       select(S.author, listed.map(p => p.author), "All authors", "Author", v => set("author", v))),
     el("div", { class: "feed-meta" }, countEl), list));
   draw();
@@ -1089,7 +1091,7 @@ const FOOTERS = {
   code: [el("p", {}, el("b", { text: "How this is counted. " }), "A change counts as authored when a Percona engineer is in its Author: or Co-authored-by: trailer, and reviewed for Reviewed-by:. A fix backpatched to several release branches is counted once. Company attribution uses email domains plus a curated name list; changes with no known employer appear as Unattributed.")],
   ranking: [el("p", {}, el("b", { text: "How this is counted. " }), "One credit per person per change, a fix backpatched to several branches counted once; the release cycle view counts every commit on the newest stable branch since it split from the previous one. Author: and Co-authored-by: count as authored, Reviewed-by: as reviewed, Reported-by: and Diagnosed-by: as reported. Committers are credited as authors when a trailer names them, or for a change of their own with no Author: trailer but a Discussion: link; their own changes with neither, such as typo fixes and version stamps, are not counted. Many commits carry no Reviewed-by: at all, so review numbers are a floor.")],
   community: [el("p", {}, el("b", { text: "Where this comes from. " }), "Schedules and organisation pages of PostgreSQL Europe, PgUS, PGDay UK, PGConf.dev and Swiss PGDay events, postgresql.org contributor and release-note lists, Planet PostgreSQL and Hackorum. A role counts when the event lists the person with Percona as company, or they are on our people list and the source names no other employer. Meetups, community days and on-site volunteering that no website lists come from a hand-curated file.")],
-  blog: [el("p", {}, el("b", { text: "Where this comes from. " }), "The PostgreSQL category feed of percona.com/blog and the PostgreSQL-tagged posts of percona.community.")],
+  blog: [el("p", {}, el("b", { text: "Where this comes from. " }), "The PostgreSQL category feed of percona.com/blog, the PostgreSQL-tagged posts of percona.community, and the personal PostgreSQL blogs of Percona people (only posts written while at Percona).")],
 };
 function render() {
   hideTip();

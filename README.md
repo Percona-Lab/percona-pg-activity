@@ -16,7 +16,8 @@ Four tabs:
   Conduct committee roles and volunteering at PostgreSQL events, with slides and
   recordings; postgresql.org contributor and release-note recognition; Planet PostgreSQL;
   mailing-list activity from Hackorum; meetups and open source projects.
-- **Blog posts**: PostgreSQL posts on percona.com and percona.community.
+- **Blog posts**: PostgreSQL posts on percona.com, percona.community and Percona people's
+  personal PostgreSQL blogs.
 
 ## How it works
 
@@ -36,7 +37,7 @@ manually (*Actions → Update PG activity dashboard → Run workflow*). It:
 | `build_dashboard_data.py` | Builds `data.json`: per-change details, versions, areas, categories, monthly company counts |
 | `build_ranking_data.py` | Builds `ranking.json`: monthly authored / reviewed / reported counts for every contributor, committers included |
 | `collect_community.py` | Builds `community.json` from conference sites, blogs, Planet PostgreSQL, Hackorum, postgresql.org |
-| `community/people.json` | Percona people to look for at events, with optional `since`/`until` dates |
+| `community/people.json` | Percona people to look for at events, with optional `since`/`until` dates and personal `blog` feed |
 | `community/manual.json` | Hand-curated meetups, community days, volunteering and projects no website lists |
 | `index.html` | The dashboard (plain HTML/JS, no dependencies) |
 
@@ -51,6 +52,7 @@ manually (*Actions → Update PG activity dashboard → Run workflow*). It:
 | postgresql.org event list | coverage check: conferences no dedicated collector reads |
 | Radar (every conference from the coverage check, plus `community/watch.json`) | Indico (CERN PGDay) and eventyay (FOSSASIA PGDay) via their APIs; any other site by looking for people.json names on its schedule / programme / speaker pages, shown as "Listed on the event website". Names found next to "Percona" that aren't in people.json go to `review` |
 | percona.com/blog, percona.community | PostgreSQL posts (RSS) |
+| Personal blogs (`blog` in people.json) | posts written while at Percona (RSS or Atom) |
 | Planet PostgreSQL | Percona feeds and recent post count |
 | Hackorum (`/team/percona`) | mailing-list messages, patches, per year |
 | postgresql.org | contributors page, release-note acknowledgments |

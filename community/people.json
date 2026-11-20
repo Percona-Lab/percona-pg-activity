@@ -1,5 +1,5 @@
 {
-  "_comment": "Percona people to look for in community sources. 'aliases' are other spellings used on conference sites. 'since'/'until' (YYYY-MM-DD) limit which events count as Percona work and override whatever company a speaker profile shows (profiles show the current employer); leave them out when the person joined before 2022. Anyone a source lists with company 'Percona' is also picked up, unless they are in 'exclude' (former employees whose profiles still say Percona).",
+  "_comment": "Percona people to look for in community sources. 'aliases' are other spellings used on conference sites. 'since'/'until' (YYYY-MM-DD) limit which events count as Percona work and override whatever company a speaker profile shows (profiles show the current employer); leave them out when the person joined before 2022. Anyone a source lists with company 'Percona' is also picked up, unless they are in 'exclude' (former employees whose profiles still say Percona). 'blog' is the RSS/Atom feed of a personal PostgreSQL blog; its posts from the person's time at Percona are listed with the Percona blogs.",
   "people": [
     {
       "name": "Alastair Turner",
@@ -87,7 +87,8 @@
     },
     {
       "name": "Stefan Fercot",
-      "since": "2026-08-01"
+      "since": "2026-09-01",
+      "blog": "https://pgstef.github.io/feed.xml"
     },
     {
       "name": "Takis Stathopoulos",

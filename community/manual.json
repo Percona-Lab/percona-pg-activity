@@ -49,6 +49,21 @@
       "since": "2024",
       "note": "Six events since December 2024, including the full-day Postgres Pune Event #6 in October 2026; Pune city chapter of PGConf India",
       "url": "https://pgpune.in/"
+    },
+    {
+      "person": "Stefan Fercot",
+      "role": "Board member (Vice Treasurer)",
+      "group": "PostgreSQL Europe",
+      "since": "2026",
+      "note": "Co-opted to the board on 29 January 2026, to serve the remainder of the term pending ratification at the next General Meeting",
+      "url": "https://www.postgresql.eu/about/board/"
+    },
+    {
+      "person": "Stefan Fercot",
+      "role": "Contributor and advocate",
+      "group": "pgBackRest",
+      "note": "Long-time pgBackRest contributor; joined Percona (one of the project sponsors) to work on pgBackRest full time",
+      "url": "https://github.com/pgbackrest/pgbackrest"
     }
   ],
   "events": [
@@ -296,6 +311,15 @@
       "repo": "https://github.com/percona/percona-postgresql-operator",
       "people": [],
       "description": "Open source Kubernetes operator for running PostgreSQL in production."
+    },
+    {
+      "name": "pgBackRest",
+      "url": "https://pgbackrest.org/",
+      "repo": "https://github.com/pgbackrest/pgbackrest",
+      "people": [
+        "Stefan Fercot"
+      ],
+      "description": "Reliable backup and restore for PostgreSQL."
     }
   ]
 }
